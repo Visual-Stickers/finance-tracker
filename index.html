@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Finance Tracker | Premium</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="app-container">
+        <aside class="sidebar glass">
+            <div class="logo">
+                <i class="fa-solid fa-wallet"></i>
+                <span>FinTrack</span>
+            </div>
+            <nav class="nav-menu">
+                <a href="#" class="nav-item active" data-target="dashboard"><i class="fa-solid fa-chart-pie"></i> Dashboard</a>
+                <a href="#" class="nav-item" data-target="transactions"><i class="fa-solid fa-money-bill-transfer"></i> Transactions</a>
+                <a href="#" class="nav-item" data-target="budgets"><i class="fa-solid fa-bullseye"></i> Budgets</a>
+                <a href="#" class="nav-item" data-target="goals"><i class="fa-solid fa-rocket"></i> Goals</a>
+                <a href="#" class="nav-item" data-target="reports"><i class="fa-solid fa-chart-line"></i> Reports</a>
+            </nav>
+            <div class="sidebar-bottom">
+                <a href="#" class="nav-item" id="theme-toggle"><i class="fa-solid fa-moon"></i> Theme</a>
+                <a href="#" class="nav-item" onclick="exportData()"><i class="fa-solid fa-download"></i> Export Data</a>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <header class="top-header glass">
+                <h2>Dashboard</h2>
+                <button class="btn-primary" onclick="openModal()"><i class="fa-solid fa-plus"></i> Add Transaction</button>
+            </header>
+
+            <div id="dashboard-view" class="view-section active">
+                <div class="summary-grid">
+                    <div class="summary-card glass">
+                        <div class="card-icon"><i class="fa-solid fa-building-columns"></i></div>
+                        <div class="card-info">
+                            <p>Net Worth</p>
+                            <h3 id="net-worth">$0.00</h3>
+                        </div>
+                    </div>
+                    <div class="summary-card glass">
+                        <div class="card-icon success"><i class="fa-solid fa-arrow-trend-up"></i></div>
+                        <div class="card-info">
+                            <p>Monthly Income</p>
+                            <h3 id="monthly-income">$0.00</h3>
+                        </div>
+                    </div>
+                    <div class="summary-card glass">
+                        <div class="card-icon danger"><i class="fa-solid fa-arrow-trend-down"></i></div>
+                        <div class="card-info">
+                            <p>Monthly Expense</p>
+                            <h3 id="monthly-expense">$0.00</h3>
+                        </div>
+                    </div>
+                    <div class="summary-card glass">
+                        <div class="card-icon warning"><i class="fa-solid fa-piggy-bank"></i></div>
+                        <div class="card-info">
+                            <p>Savings</p>
+                            <h3 id="monthly-savings">$0.00</h3>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="charts-grid">
+                    <div class="chart-card glass">
+                        <h3>Income vs Expense</h3>
+                        <canvas id="cashFlowChart"></canvas>
+                    </div>
+                    <div class="chart-card glass">
+                        <h3>Expense Breakdown</h3>
+                        <canvas id="expensePieChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="recent-transactions glass">
+                    <h3>Recent Transactions</h3>
+                    <div class="table-container">
+                        <table id="transactions-table">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Description</th>
+                                    <th>Category</th>
+                                    <th>Account</th>
+                                    <th>Amount</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="transaction-list">
+                                </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <div id="transaction-modal" class="modal">
+        <div class="modal-content glass">
+            <div class="modal-header">
+                <h3>Add Transaction</h3>
+                <button class="close-btn" onclick="closeModal()"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <form id="transaction-form">
+                <div class="form-group">
+                    <label>Type</label>
+                    <select id="t-type" required>
+                        <option value="expense">Expense</option>
+                        <option value="income">Income</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Amount</label>
+                    <input type="number" id="t-amount" step="0.01" required>
+                </div>
+                <div class="form-group">
+                    <label>Description / Merchant</label>
+                    <input type="text" id="t-desc" required>
+                </div>
+                <div class="form-group">
+                    <label>Category</label>
+                    <select id="t-category" required>
+                        <option value="Housing">Housing</option>
+                        <option value="Food">Food</option>
+                        <option value="Transportation">Transportation</option>
+                        <option value="Utilities">Utilities</option>
+                        <option value="Entertainment">Entertainment</option>
+                        <option value="Salary">Salary</option>
+                        <option value="Other">Other</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Date</label>
+                    <input type="date" id="t-date" required>
+                </div>
+                <div class="form-group">
+                    <label>Account</label>
+                    <select id="t-account" required>
+                        <option value="Cash">Cash</option>
+                        <option value="Bank">Bank Account</option>
+                        <option value="Credit Card">Credit Card</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn-primary full-width">Save Transaction</button>
+            </form>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
