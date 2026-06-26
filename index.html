@@ -1,0 +1,669 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prem Finance Tracker</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="app-layout">
+        <aside class="sidebar glassmorphic">
+            <div class="sidebar-brand">
+                <div class="brand-logo">
+                    <i class="fa-solid fa-chart-network"></i>
+                </div>
+                <div class="brand-info">
+                    <span class="brand-name">Prem Finance</span>
+                    <span class="brand-status">Visual Stickers Edition</span>
+                </div>
+            </div>
+
+            <nav class="sidebar-nav">
+                <div class="nav-section-label">Core Engine</div>
+                <a href="#" class="nav-link active" data-view="dashboard">
+                    <i class="fa-solid fa-grid-2-menu"></i> <span>Dashboard</span>
+                </a>
+                <a href="#" class="nav-link" data-view="income">
+                    <i class="fa-solid fa-arrow-down-left-and-arrow-up-right-to-center"></i> <span>Income Stream</span>
+                </a>
+                <a href="#" class="nav-link" data-view="expenses">
+                    <i class="fa-solid fa-receipt"></i> <span>Expenses Ledger</span>
+                </a>
+                <a href="#" class="nav-link" data-view="accounts">
+                    <i class="fa-solid fa-vault"></i> <span>Accounts Vault</span>
+                </a>
+
+                <div class="nav-section-label">Planning & Growth</div>
+                <a href="#" class="nav-link" data-view="budget">
+                    <i class="fa-solid fa-calendar-lines-pen"></i> <span>Monthly Budget</span>
+                </a>
+                <a href="#" class="nav-link" data-view="goals">
+                    <i class="fa-solid fa-bullseye-arrow"></i> <span>Capital Goals</span>
+                </a>
+                <a href="#" class="nav-link" data-view="reports">
+                    <i class="fa-solid fa-chart-mixed"></i> <span>Deep Analytics</span>
+                </a>
+
+                <div class="nav-section-label">Architecture</div>
+                <a href="#" class="nav-link" data-view="loans">
+                    <i class="fa-solid fa-hand-holding-dollar"></i> <span>Loan Portfolio</span>
+                </a>
+                <a href="#" class="nav-link" data-view="settings">
+                    <i class="fa-solid fa-sliders"></i> <span>System Settings</span>
+                </a>
+                <a href="#" class="nav-link" data-view="about">
+                    <i class="fa-solid fa-circle-info"></i> <span>About System</span>
+                </a>
+            </nav>
+
+            <div class="sidebar-footer">
+                <button id="theme-toggle-btn" class="sidebar-action-btn" title="Toggle Theme Matrix">
+                    <i class="fa-solid fa-moon"></i> <span class="theme-text">Dark Matrix</span>
+                </button>
+            </div>
+        </aside>
+
+        <main class="main-viewport">
+            <header class="global-header glassmorphic">
+                <div class="header-title-area">
+                    <h1 id="view-title">Dashboard Matrix</h1>
+                    <p id="view-subtitle" class="text-muted">Real-time macro view of personal and Visual Stickers operations.</p>
+                </div>
+                <div class="header-actions">
+                    <div class="global-search-wrapper glassmorphic">
+                        <i class="fa-solid fa-magnifying-glass search-icon"></i>
+                        <input type="text" id="global-search-input" placeholder="Search across global transaction ledger...">
+                    </div>
+                    <button class="btn btn-gradient" onclick="uiController.openTransactionModal('expense')">
+                        <i class="fa-solid fa-plus-circle"></i> New Entry
+                    </button>
+                </div>
+            </header>
+
+            <div id="view-dashboard" class="view-layer active-layer">
+                <div class="metrics-ribbon">
+                    <div class="metric-tile glassmorphic">
+                        <div class="tile-header">
+                            <span class="tile-label">Net Worth Aggregate</span>
+                            <div class="tile-icon-box primary"><i class="fa-solid fa-line-chart"></i></div>
+                        </div>
+                        <div class="tile-body">
+                            <h2 id="dash-net-worth">₹0.00</h2>
+                            <div class="tile-footer success-text">
+                                <i class="fa-solid fa-shield-check"></i> <span>System Safe</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="metric-tile glassmorphic">
+                        <div class="tile-header">
+                            <span class="tile-label">Monthly Gross Inflow</span>
+                            <div class="tile-icon-box success"><i class="fa-solid fa-arrow-down-left"></i></div>
+                        </div>
+                        <div class="tile-body">
+                            <h2 id="dash-gross-income">₹0.00</h2>
+                            <div class="tile-footer text-muted" id="dash-income-split-summary">
+                                Salary & Business Segregated
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="metric-tile glassmorphic">
+                        <div class="tile-header">
+                            <span class="tile-label">Monthly Outflow Ledger</span>
+                            <div class="tile-icon-box danger"><i class="fa-solid fa-arrow-up-right"></i></div>
+                        </div>
+                        <div class="tile-body">
+                            <h2 id="dash-gross-expense">₹0.00</h2>
+                            <div class="tile-footer" id="dash-expense-burn-rate">
+                                <span class="text-muted">Calculating burn rate...</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="metric-tile glassmorphic">
+                        <div class="tile-header">
+                            <span class="tile-label">Liquid Savings Capital</span>
+                            <div class="tile-icon-box warning"><i class="fa-solid fa-piggy-bank"></i></div>
+                        </div>
+                        <div class="tile-body">
+                            <h2 id="dash-liquid-savings">₹0.00</h2>
+                            <div class="tile-flex-footer">
+                                <span class="rate-label">Savings Rate:</span>
+                                <span id="dash-savings-rate" class="rate-badge">0%</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="dashboard-analytics-grid">
+                    <div class="analytics-card main-chart-card glassmorphic">
+                        <div class="card-header-axis">
+                            <h3>Cash Flow Velocity Trend</h3>
+                            <div class="chart-legends" id="cash-flow-legend"></div>
+                        </div>
+                        <div class="chart-container-wrapper">
+                            <canvas id="canvas-cashflow-trend"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="analytics-card sub-chart-card glassmorphic">
+                        <div class="card-header-axis">
+                            <h3>System Health Score</h3>
+                        </div>
+                        <div class="health-score-viewport">
+                            <div class="radial-progress-container">
+                                <div class="radial-value" id="dash-health-score">0</div>
+                                <div class="radial-label">Optimal Matrix</div>
+                            </div>
+                            <div class="insight-box-glass" id="dash-today-insight">
+                                <i class="fa-solid fa-sparkles insight-sparkle"></i>
+                                <p class="insight-text">Initializing operational analysis engine parameters...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="dashboard-operations-grid">
+                    <div class="ops-card ledger-preview glassmorphic">
+                        <div class="ops-card-header">
+                            <h3>Recent Ledger Modifications</h3>
+                            <button class="btn btn-secondary-text" onclick="uiController.switchView('expenses')">View Full Ledger <i class="fa-solid fa-arrow-right-long"></i></button>
+                        </div>
+                        <div class="table-scroller">
+                            <table class="premium-table">
+                                <thead>
+                                    <tr>
+                                        <th>Date Stamp</th>
+                                        <th>Allocation Description</th>
+                                        <th>Category Matrix</th>
+                                        <th>Source Node</th>
+                                        <th>Quantum</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="dash-recent-transactions-tbody">
+                                    </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="ops-card auxiliary-preview-panel glassmorphic">
+                        <div class="sub-widget-block mb-4">
+                            <div class="widget-header-row">
+                                <h4>Fiscal Budget Consumption</h4>
+                                <span id="dash-budget-percentage" class="text-accent font-bold">0%</span>
+                            </div>
+                            <div class="premium-progress-bar-container">
+                                <div id="dash-budget-progress-bar" class="premium-progress-fill primary-fill" style="width: 0%"></div>
+                            </div>
+                            <div class="widget-footer-row text-muted mt-2">
+                                <span id="dash-budget-spent-label">Spent: ₹0.00</span>
+                                <span id="dash-budget-remain-label">Remaining: ₹0.00</span>
+                            </div>
+                        </div>
+
+                        <div class="sub-widget-block mb-4 liability-widget">
+                            <div class="widget-header-row">
+                                <h4>Active Liabilities Status</h4>
+                                <span class="badge badge-danger">HDFC Loan Monitor</span>
+                            </div>
+                            <div class="liability-metrics mt-2">
+                                <div class="l-metric">
+                                    <span class="l-lbl">Outstanding Principle Balance</span>
+                                    <span id="dash-loan-balance" class="l-val">₹1,319,259.06</span>
+                                </div>
+                                <div class="l-metric">
+                                    <span class="l-lbl">Next Scheduled Outflow EMI</span>
+                                    <span id="dash-loan-emi" class="l-val">₹25,184.00</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="sub-widget-block">
+                            <div class="widget-header-row">
+                                <h4>Capital Goals Matrix</h4>
+                                <button class="btn btn-secondary-text" onclick="uiController.switchView('goals')">Manage Goals</button>
+                            </div>
+                            <div class="goals-mini-stack" id="dash-mini-goals-container">
+                                </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="view-income" class="view-layer">
+                <div class="module-action-deck glassmorphic">
+                    <div class="deck-filters-row">
+                        <select id="income-filter-source" class="form-control-premium">
+                            <option value="ALL">All Financial Streams</option>
+                            <option value="Salary">Salary Inflow</option>
+                            <option value="Business">Visual Stickers Income</option>
+                            <option value="Freelancing">Freelancing Operations</option>
+                            <option value="Interest">Investment Interest</option>
+                            <option value="Other">Alternative Flows</option>
+                        </select>
+                        <select id="income-filter-month" class="form-control-premium">
+                            </select>
+                    </div>
+                    <button class="btn btn-success-gradient" onclick="uiController.openTransactionModal('income')">
+                        <i class="fa-solid fa-circle-plus"></i> Record Inflow Asset
+                    </button>
+                </div>
+
+                <div class="module-summary-strip mb-4">
+                    <div class="summary-strip-tile glassmorphic">
+                        <span class="strip-label">Aggregated Year-to-Date Inflow</span>
+                        <h3 id="inc-ytd-total" class="success-text">₹0.00</h3>
+                    </div>
+                    <div class="summary-strip-tile glassmorphic">
+                        <span class="strip-label">Visual Stickers Gross Business Return</span>
+                        <h3 id="inc-business-total" class="text-accent">₹0.00</h3>
+                    </div>
+                    <div class="summary-strip-tile glassmorphic">
+                        <span class="strip-label">Corporate Salary Allocation Base</span>
+                        <h3 id="inc-salary-total">₹0.00</h3>
+                    </div>
+                </div>
+
+                <div class="data-ledger-card glassmorphic">
+                    <div class="table-scroller">
+                        <table class="premium-table">
+                            <thead>
+                                <tr>
+                                    <th>Date Stamp</th>
+                                    <th>Source Node</th>
+                                    <th>Inflow Classification Category</th>
+                                    <th>Asset Target Account</th>
+                                    <th>Payment Engine</th>
+                                    <th>Quantum</th>
+                                    <th>Operational Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="income-ledger-tbody">
+                                </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div id="view-expenses" class="view-layer">
+                <div class="module-action-deck glassmorphic">
+                    <div class="deck-search-filters-complex">
+                        <input type="text" id="expense-search-field" class="form-control-premium" placeholder="Filter descriptions/merchants...">
+                        <select id="expense-filter-category" class="form-control-premium">
+                            <option value="ALL">All Categories</option>
+                            </select>
+                        <select id="expense-filter-account" class="form-control-premium">
+                            <option value="ALL">All Source Accounts</option>
+                            <option value="Cash">Cash Account</option>
+                            <option value="UPI">UPI Framework</option>
+                            <option value="HDFC">HDFC Nexus</option>
+                            <option value="SBI">SBI Node</option>
+                            <option value="Wallet">Digital Wallet Stack</option>
+                            <option value="Credit Card">Credit Card Line</option>
+                        </select>
+                        <select id="expense-sort-by" class="form-control-premium">
+                            <option value="date-desc">Chronological: Newest First</option>
+                            <option value="date-asc">Chronological: Oldest First</option>
+                            <option value="amount-desc">Quantum: Maximum Impact</option>
+                            <option value="amount-asc">Quantum: Minimum Impact</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="data-ledger-card glassmorphic">
+                    <div class="table-scroller">
+                        <table class="premium-table">
+                            <thead>
+                                <tr>
+                                    <th>Date Stamp</th>
+                                    <th>Category Stream</th>
+                                    <th>Merchant / Purpose</th>
+                                    <th>Source Node Account</th>
+                                    <th>Payment Engine</th>
+                                    <th>Quantum Impact</th>
+                                    <th>Operational Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="expense-ledger-tbody">
+                                </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div id="view-accounts" class="view-layer">
+                <div class="accounts-matrix-grid" id="accounts-cards-container">
+                    </div>
+                
+                <div class="analytics-card glassmorphic mt-4">
+                    <div class="card-header-axis">
+                        <h3>Capital Node Inter-balances Allocations</h3>
+                    </div>
+                    <div class="chart-container-wrapper-large">
+                        <canvas id="canvas-account-allocation-pie"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <div id="view-budget" class="view-layer">
+                <div class="module-action-deck glassmorphic">
+                    <div class="deck-info-block">
+                        <h3>Failsafe Overspending Guard Engine</h3>
+                        <p class="text-muted">Set target monthly allocations matching your Excel framework parameters.</p>
+                    </div>
+                    <button class="btn btn-gradient" onclick="uiController.openBudgetConfigModal()">
+                        <i class="fa-solid fa-gears"></i> Set Budgets Matrix
+                    </button>
+                </div>
+
+                <div class="budget-allocations-vertical-stack" id="budget-modules-stack">
+                    </div>
+            </div>
+
+            <div id="view-goals" class="view-layer">
+                <div class="module-action-deck glassmorphic">
+                    <div class="deck-info-block">
+                        <h3>Multi-Horizon Capital Accumulation Targets</h3>
+                        <p class="text-muted">Isolate investment goals from day-to-day general business liquid operational flows.</p>
+                    </div>
+                    <button class="btn btn-gradient" onclick="uiController.openGoalConfigModal()">
+                        <i class="fa-solid fa-square-plus"></i> Launch Target Goal Node
+                    </button>
+                </div>
+
+                <div class="goals-quad-grid" id="goals-cards-container">
+                    </div>
+            </div>
+
+            <div id="view-reports" class="view-layer">
+                <div class="module-action-deck glassmorphic">
+                    <div class="deck-filters-row">
+                        <select id="report-selected-year" class="form-control-premium">
+                            <option value="2026">Fiscal Matrix Year 2026</option>
+                            <option value="2027">Fiscal Matrix Year 2027</option>
+                        </select>
+                        <button class="btn btn-secondary-outline" onclick="reportEngine.exportToPrintSystem()">
+                            <i class="fa-solid fa-print"></i> Render Print Layout
+                        </button>
+                    </div>
+                </div>
+
+                <div class="reports-complex-layout-grid">
+                    <div class="analytics-card glassmorphic">
+                        <div class="card-header-axis">
+                            <h3>Category Absorption Spectrum Matrix</h3>
+                        </div>
+                        <div class="chart-container-wrapper">
+                            <canvas id="canvas-report-category-pie"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="analytics-card glassmorphic">
+                        <div class="card-header-axis">
+                            <h3>Savings Over Time Scale Trend</h3>
+                        </div>
+                        <div class="chart-container-wrapper">
+                            <canvas id="canvas-report-savings-trend"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="data-ledger-card glassmorphic mt-4">
+                    <div class="card-header-axis p-4">
+                        <h3>Aggregated Historical Cross-matrix Analytics</h3>
+                    </div>
+                    <div class="table-scroller">
+                        <table class="premium-table" id="matrix-report-table">
+                            <thead>
+                                <tr>
+                                    <th>Metric Parameter Segment</th>
+                                    <th>Jan</th><th>Feb</th><th>Mar</th><th>Apr</th><th>May</th><th>Jun</th>
+                                    <th>Jul</th><th>Aug</th><th>Sep</th><th>Oct</th><th>Nov</th><th>Dec</th>
+                                </tr>
+                            </thead>
+                            <tbody id="matrix-report-tbody">
+                                </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div id="view-loans" class="view-layer">
+                <div class="loan-analytics-summary-deck mb-4">
+                    <div class="summary-strip-tile glassmorphic alert-tile">
+                        <span class="strip-label">Total Debt Under Management</span>
+                        <h3 id="loan-total-debt" class="danger-text">₹1,319,259.06</h3>
+                    </div>
+                    <div class="summary-strip-tile glassmorphic">
+                        <span class="strip-label">Amortized Scheduled Term Remaining</span>
+                        <h3 id="loan-remaining-months">70 Months</h3>
+                    </div>
+                    <div class="summary-strip-tile glassmorphic">
+                        <span class="strip-label">Total Completed Cycles Count</span>
+                        <h3 id="loan-paid-cycles">2 / 72 Payments</h3>
+                    </div>
+                </div>
+
+                <div class="dashboard-analytics-grid">
+                    <div class="analytics-card glassmorphic">
+                        <div class="card-header-axis">
+                            <h3>HDFC Portfolio Amortization Blueprint</h3>
+                        </div>
+                        <div class="amortization-card-metrics p-2">
+                            <div class="amort-row"><span>Interest Rate Applied (Fixed Base)</span><strong>10.35%</strong></div>
+                            <div class="amort-row"><span>Net Disbursed Investment Base</span><strong>₹1,322,130.00</strong></div>
+                            <div class="amort-row"><span>Total Interest Capitalized Cost</span><strong>₹462,834.00</strong></div>
+                            <div class="amort-row"><span>Total Future Commitment Value</span><strong>₹1,809,350.00</strong></div>
+                        </div>
+                    </div>
+                    <div class="analytics-card glassmorphic">
+                        <div class="card-header-axis">
+                            <h3>Future Architecture Strategy Engine Insights</h3>
+                        </div>
+                        <div class="future-module-lockscreen">
+                            <i class="fa-solid fa-chart-line-up"></i>
+                            <h4>Debt Prepayment Optimizer Matrix</h4>
+                            <p class="text-muted text-center max-w-sm mt-2">
+                                Architectural core fully integrated with main cash flow pipeline. Automated predictive modeling of part-payments and optimization simulations will execute dynamically based on future custom cash structures.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="view-settings" class="view-layer">
+                <div class="settings-control-panel-stack">
+                    <div class="settings-block-card glassmorphic">
+                        <h3><i class="fa-solid fa-server"></i> System Core Storage & Matrix Maintenance</h3>
+                        <p class="text-muted">Manage the localized application framework baseline file states safely without server interaction.</p>
+                        <div class="settings-actions-row mt-4">
+                            <button class="btn btn-secondary-outline" onclick="storageEngine.triggerExportDataBackup()">
+                                <i class="fa-solid fa-download"></i> Generate Secure JSON Backup
+                            </button>
+                            <label class="btn btn-secondary-outline" style="cursor: pointer; display: inline-flex; align-items: center; margin: 0;">
+                                <i class="fa-solid fa-upload" style="margin-right: 8px;"></i> Ingest Backup JSON Document
+                                <input type="file" id="settings-import-file-field" style="display: none;" onchange="storageEngine.triggerImportDataMatrix(event)">
+                            </label>
+                            <button class="btn btn-danger-gradient" onclick="storageEngine.triggerFactoryResetPurge()">
+                                <i class="fa-solid fa-trash-flame"></i> Execute Core Destructive Wipe
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="settings-block-card glassmorphic mt-4">
+                        <h3><i class="fa-solid fa-database"></i> Database Seed Injection Matrix</h3>
+                        <p class="text-muted">Load structured baseline operational financial matrices corresponding directly to your historical Excel tracker architecture.</p>
+                        <div class="settings-actions-row mt-4">
+                            <button class="btn btn-gradient" onclick="storageEngine.injectExcelSampleDataset()">
+                                <i class="fa-solid fa-wand-magic-sparkles"></i> Inject Excel Baseline System Data Matrix
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="view-about" class="view-layer">
+                <div class="about-system-showcase-card glassmorphic">
+                    <div class="brand-logo large-logo mb-4"><i class="fa-solid fa-chart-network"></i></div>
+                    <h2>Prem Finance Tracker</h2>
+                    <span class="version-badge">Version 1.0.0 Production Core</span>
+                    <p class="about-text-narrative mt-4 text-muted text-center max-w-md">
+                        An elite, zero-backend personal capital accounting engine designed specifically to decouple private household tracking pipelines from the operational growth cycles of the **Visual Stickers** company framework. Built completely out of pure frontend structural assets, running directly via modern browsers without leaving footprints outside the localized secure state framework.
+                    </p>
+                    <div class="architecture-specs-list mt-4">
+                        <div class="spec-node"><i class="fa-brands fa-html5"></i> HTML5 Semantic Structure</div>
+                        <div class="spec-node"><i class="fa-brands fa-css3-alt"></i> Vanilla CSS Custom Properties Matrix</div>
+                        <div class="spec-node"><i class="fa-brands fa-js"></i> Clean JavaScript ES6 State Machine Logic</div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <div id="modal-transaction-dialog" class="global-modal-overlay">
+        <div class="modal-window-box glassmorphic">
+            <div class="modal-header-section">
+                <h3 id="modal-transaction-title-node">Log Entry Parameters</h3>
+                <button class="modal-dismiss-trigger" onclick="uiController.closeTransactionModal()"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <form id="form-transaction-entry" class="modal-body-form">
+                <input type="hidden" id="form-input-id">
+                
+                <div class="form-row-split">
+                    <div class="form-group">
+                        <label for="form-input-type">Inflow/Outflow Vector Axis</label>
+                        <select id="form-input-type" class="form-control-premium" required onchange="uiController.rebuildModalCategoryDropdownBasedOnType()">
+                            <option value="expense">Outflow Ledger Entry (Expense)</option>
+                            <option value="income">Inflow Asset Element (Income)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="form-input-amount">Transaction Capital Quantum (₹)</label>
+                        <input type="number" id="form-input-amount" step="0.01" min="0.01" class="form-control-premium" required placeholder="0.00">
+                    </div>
+                </div>
+
+                <div class="form-row-split">
+                    <div class="form-group">
+                        <label for="form-input-date">Execution Chronological Date</label>
+                        <input type="date" id="form-input-date" class="form-control-premium" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="form-input-category">Analytical Categorization Node</label>
+                        <select id="form-input-category" class="form-control-premium" required>
+                            </select>
+                    </div>
+                </div>
+
+                <div class="form-row-split">
+                    <div class="form-group">
+                        <label for="form-input-account">Target System Liquidity Account</label>
+                        <select id="form-input-account" class="form-control-premium" required>
+                            <option value="Cash">Cash Account</option>
+                            <option value="UPI">UPI Framework Link</option>
+                            <option value="HDFC">HDFC Bank Primary Core</option>
+                            <option value="SBI">SBI Bank Auxiliary Node</option>
+                            <option value="Wallet">Digital Liquid Wallet</option>
+                            <option value="Credit Card">Credit Card Line Architecture</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="form-input-method">Instrument Settlement Mechanism</label>
+                        <select id="form-input-method" class="form-control-premium" required>
+                            <option value="Digital Transfer">Instant Digital Network Transfer</option>
+                            <option value="UPI Direct">Unified Payments Interface (UPI)</option>
+                            <option value="Net Banking">Core Corporate Electronic Banking</option>
+                            <option value="Physical Cash">Physical Currency Liquidation</option>
+                            <option value="Credit Protocol">Deferred Credit Settlement Line</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="form-input-desc">Merchant Designation / Allocation Identification</label>
+                    <input type="text" id="form-input-desc" class="form-control-premium" placeholder="Specify allocation details clearly..." required>
+                </div>
+
+                <div class="form-group">
+                    <label for="form-input-notes">Architectural Engineering Operational Notes</label>
+                    <textarea id="form-input-notes" class="form-control-premium-textarea" placeholder="Add custom notes or contextual identifiers..."></textarea>
+                </div>
+
+                <div class="form-group-checkbox">
+                    <input type="checkbox" id="form-input-repeat">
+                    <label for="form-input-repeat">Recur and repeat this matrix operation at monthly programmatic boundaries</label>
+                </div>
+
+                <div class="modal-actions-footer-deck">
+                    <button type="button" class="btn btn-secondary-outline" onclick="uiController.closeTransactionModal()">Cancel Operations</button>
+                    <button type="submit" class="btn btn-gradient">Save Structure Entry</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="modal-budget-dialog" class="global-modal-overlay">
+        <div class="modal-window-box glassmorphic">
+            <div class="modal-header-section">
+                <h3>Configure Category Budgets Matrix</h3>
+                <button class="modal-dismiss-trigger" onclick="uiController.closeBudgetConfigModal()"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <form id="form-budget-configuration-matrix" class="modal-body-form long-form-scroller">
+                <div id="budget-inputs-target-stack">
+                    </div>
+                <div class="modal-actions-footer-deck mt-4">
+                    <button type="button" class="btn btn-secondary-outline" onclick="uiController.closeBudgetConfigModal()">Cancel Config</button>
+                    <button type="submit" class="btn btn-gradient">Save Configurations</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="modal-goal-dialog" class="global-modal-overlay">
+        <div class="modal-window-box glassmorphic">
+            <div class="modal-header-section">
+                <h3 id="modal-goal-title-node">Deploy New Capital Goal</h3>
+                <button class="modal-dismiss-trigger" onclick="uiController.closeGoalConfigModal()"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <form id="form-goal-configuration" class="modal-body-form">
+                <input type="hidden" id="form-goal-id">
+                
+                <div class="form-group">
+                    <label for="form-goal-name">Capital Objective Designation Name</label>
+                    <input type="text" id="form-goal-name" class="form-control-premium" required placeholder="e.g., Business Expansion Fund">
+                </div>
+
+                <div class="form-row-split">
+                    <div class="form-group">
+                        <label for="form-goal-target">Target Monetary Accumulation (₹)</label>
+                        <input type="number" id="form-goal-target" step="1" min="1" class="form-control-premium" required placeholder="0.00">
+                    </div>
+                    <div class="form-group">
+                        <label for="form-goal-current">Current Capital Balance Allotted (₹)</label>
+                        <input type="number" id="form-goal-current" step="1" min="0" class="form-control-premium" required placeholder="0.00">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="form-goal-deadline">Strategic Deadline Chronological Limit</label>
+                    <input type="date" id="form-goal-deadline" class="form-control-premium" required>
+                </div>
+
+                <div class="modal-actions-footer-deck">
+                    <button type="button" class="btn btn-secondary-outline" onclick="uiController.closeGoalConfigModal()">Cancel Matrix Target</button>
+                    <button type="submit" class="btn btn-gradient">Deploy Target Node</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
