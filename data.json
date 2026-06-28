@@ -1,0 +1,33 @@
+{
+  "transactions": [
+    {
+      "id": "1782669463594",
+      "type": "expense",
+      "date": "2026-06-28",
+      "desc": "food",
+      "amount": 5000,
+      "category": "food",
+      "note": "",
+      "recurring": false,
+      "created": "2026-06-28T17:57:43.594Z"
+    }
+  ],
+  "loans": [
+    {
+      "id": "hdfc_loan_preloaded",
+      "type": "loan",
+      "name": "HDFC Personal Loan",
+      "principal": 1346516,
+      "balance": 1319259,
+      "emi": 25184,
+      "rate": 10.35,
+      "start": "2026-05-01",
+      "end": "2032-04-01",
+      "tenure": 72,
+      "paidEmi": 2,
+      "note": "Net Disbursed: ₹13,22,130 | Total Payable: ₹18,09,350 | Total Interest: ₹4,62,834 | Processing Fee: ₹7,670 | Insurance: ₹16,516 | APR: 10.42%",
+      "preloaded": true
+    }
+  ],
+  "cards": []
+}
