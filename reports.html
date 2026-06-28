@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Reports – Finance Command Center</title>
+  <link rel="stylesheet" href="assets/css/style.css">
+  <link rel="stylesheet" href="assets/css/pages.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+
+<nav class="nav">
+  <a href="index.html" class="nav-brand">
+    <div class="brand-icon"><i class="fa-solid fa-chart-line"></i></div>
+    <span class="brand-name">Finance Command Center</span>
+  </a>
+  <ul class="nav-links">
+    <li><a href="index.html"><i class="fa-solid fa-gauge-high"></i><span>Dashboard</span></a></li>
+    <li><a href="income-expense.html"><i class="fa-solid fa-arrows-left-right"></i><span>Income & Expense</span></a></li>
+    <li><a href="loans.html"><i class="fa-solid fa-landmark"></i><span>Loans</span></a></li>
+    <li><a href="credit-cards.html"><i class="fa-solid fa-credit-card"></i><span>Credit Cards</span></a></li>
+    <li><a href="reports.html" class="active"><i class="fa-solid fa-chart-pie"></i><span>Reports</span></a></li>
+    <li><a href="settings.html"><i class="fa-solid fa-gear"></i><span>Settings</span></a></li>
+  </ul>
+  <span class="nav-date" id="navDate"></span>
+</nav>
+
+<div class="page">
+  <div class="page-header">
+    <h1><i class="fa-solid fa-chart-pie" style="color:var(--accent-purple);font-size:22px"></i> Reports & Analytics</h1>
+    <p>Visual overview of your complete financial picture.</p>
+  </div>
+
+  <!-- Net Worth Banner -->
+  <div class="card" style="background:linear-gradient(135deg,#1e1b4b,#2d1b69);border-color:rgba(139,92,246,0.25);margin-bottom:24px">
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:20px;text-align:center">
+      <div>
+        <div style="font-size:12px;color:#a78bfa;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px">Total Income (Planned)</div>
+        <div style="font-size:22px;font-weight:700;color:#10b981" id="rpt-total-income">—</div>
+      </div>
+      <div>
+        <div style="font-size:12px;color:#a78bfa;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px">Total Expenses (Planned)</div>
+        <div style="font-size:22px;font-weight:700;color:#ef4444" id="rpt-total-exp">—</div>
+      </div>
+      <div>
+        <div style="font-size:12px;color:#a78bfa;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px">Loan Outstanding</div>
+        <div style="font-size:22px;font-weight:700;color:#f59e0b" id="rpt-loan-os">—</div>
+      </div>
+      <div>
+        <div style="font-size:12px;color:#a78bfa;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px">Projected Net Worth</div>
+        <div style="font-size:22px;font-weight:700;color:#8b5cf6" id="rpt-networth">—</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid-2" style="margin-bottom:16px">
+    <div class="report-chart-card">
+      <h3><i class="fa-solid fa-chart-bar"></i> Income vs Expense (Full Year)</h3>
+      <canvas id="rpt-ie-chart"></canvas>
+    </div>
+    <div class="report-chart-card">
+      <h3><i class="fa-solid fa-wave-square"></i> Monthly Balance Trend</h3>
+      <canvas id="rpt-balance-chart"></canvas>
+    </div>
+  </div>
+
+  <div class="grid-2" style="margin-bottom:16px">
+    <div class="report-chart-card">
+      <h3><i class="fa-solid fa-chart-pie"></i> Expense Breakdown</h3>
+      <canvas id="rpt-exp-break" style="max-height:260px"></canvas>
+    </div>
+    <div class="report-chart-card">
+      <h3><i class="fa-solid fa-landmark"></i> Loan Reduction Forecast</h3>
+      <canvas id="rpt-loan-chart"></canvas>
+    </div>
+  </div>
+
+  <div class="report-chart-card">
+    <h3><i class="fa-solid fa-table"></i> Monthly Plan Summary</h3>
+    <div style="overflow-x:auto">
+      <table class="data-table" id="rpt-table"></table>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script src="assets/js/data.js"></script>
+<script src="assets/js/utils.js"></script>
+<script src="assets/js/storage.js"></script>
+<script src="assets/js/reports.js"></script>
+</body>
+</html>
