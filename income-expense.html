@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Income & Expense – Finance Command Center</title>
+  <link rel="stylesheet" href="assets/css/style.css">
+  <link rel="stylesheet" href="assets/css/pages.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="assets/js/supabase-client.js"></script>
+</head>
+<body>
+
+<nav class="nav">
+  <a href="index.html" class="nav-brand">
+    <div class="brand-icon"><i class="fa-solid fa-chart-line"></i></div>
+    <span class="brand-name">Finance Command Center</span>
+  </a>
+  <ul class="nav-links">
+    <li><a href="index.html"><i class="fa-solid fa-gauge-high"></i><span>Dashboard</span></a></li>
+    <li><a href="income-expense.html" class="active"><i class="fa-solid fa-arrows-left-right"></i><span>Income & Expense</span></a></li>
+    <li><a href="loans.html"><i class="fa-solid fa-landmark"></i><span>Loans</span></a></li>
+    <li><a href="credit-cards.html"><i class="fa-solid fa-credit-card"></i><span>Credit Cards</span></a></li>
+    <li><a href="reports.html"><i class="fa-solid fa-chart-pie"></i><span>Reports</span></a></li>
+    <li><a href="settings.html"><i class="fa-solid fa-gear"></i><span>Settings</span></a></li>
+  </ul>
+  <span class="nav-date" id="navDate"></span>
+  <button class="btn-signout" onclick="Auth.signOut()" title="Sign Out"><i class="fa-solid fa-right-from-bracket"></i> <span>Sign Out</span></button>
+</nav>
+
+<div class="page">
+  <div class="page-header">
+    <h1><i class="fa-solid fa-arrows-left-right" style="color:var(--accent-blue);font-size:22px"></i> Income & Expense</h1>
+    <p>Monthly financial plan — mark items as complete to track your actual balance.</p>
+  </div>
+
+  <!-- Month Nav -->
+  <div class="month-nav">
+    <button class="month-nav-btn" id="prevMonth"><i class="fa-solid fa-chevron-left"></i></button>
+    <span class="month-nav-label" id="monthLabel">—</span>
+    <button class="month-nav-btn" id="nextMonth"><i class="fa-solid fa-chevron-right"></i></button>
+  </div>
+
+  <!-- Summary Bar -->
+  <div class="ie-summary-bar">
+    <div class="ie-sum-cell">
+      <div class="ie-sum-label">Planned Income</div>
+      <div class="ie-sum-value" id="sum-planned-income" style="color:var(--accent-green)">—</div>
+    </div>
+    <div class="ie-sum-cell">
+      <div class="ie-sum-label">Actual Income</div>
+      <div class="ie-sum-value" id="sum-actual-income" style="color:var(--accent-green)">—</div>
+    </div>
+    <div class="ie-sum-cell">
+      <div class="ie-sum-label">Planned Expenses</div>
+      <div class="ie-sum-value" id="sum-planned-exp" style="color:var(--accent-red)">—</div>
+    </div>
+    <div class="ie-sum-cell">
+      <div class="ie-sum-label">Actual Expenses</div>
+      <div class="ie-sum-value" id="sum-actual-exp" style="color:var(--accent-red)">—</div>
+    </div>
+  </div>
+
+  <!-- Split Panel -->
+  <div class="ie-split">
+    <!-- Income Panel -->
+    <div class="ie-panel">
+      <div class="ie-panel-head">
+        <div class="ie-panel-title" style="color:var(--accent-green)">
+          <i class="fa-solid fa-arrow-down"></i> Income
+        </div>
+        <span class="ie-panel-total" id="income-total" style="color:var(--accent-green)">—</span>
+      </div>
+      <div id="incomeList"></div>
+    </div>
+
+    <!-- Expense Panel -->
+    <div class="ie-panel">
+      <div class="ie-panel-head">
+        <div class="ie-panel-title" style="color:var(--accent-red)">
+          <i class="fa-solid fa-arrow-up"></i> Expenses
+        </div>
+        <span class="ie-panel-total" id="expense-total" style="color:var(--accent-red)">—</span>
+      </div>
+      <div id="expenseList"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Income Mark Modal -->
+<div class="modal-overlay" id="incomeModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title"><i class="fa-solid fa-arrow-down" style="color:var(--accent-green)"></i> Mark Income Received</div>
+      <button class="modal-close" onclick="Utils.closeModal('incomeModal')">&times;</button>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Planned Amount</label>
+      <input class="form-control" id="im-planned" readonly>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Actual Amount Received</label>
+      <input class="form-control" id="im-actual" type="number" placeholder="Enter actual amount">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Date Received</label>
+      <input class="form-control" id="im-date" type="date">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Notes (optional)</label>
+      <input class="form-control" id="im-note" placeholder="Any notes...">
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="Utils.closeModal('incomeModal')">Cancel</button>
+      <button class="btn btn-success" id="im-save">
+        <i class="fa-solid fa-check"></i> Mark Received
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Expense Mark Modal -->
+<div class="modal-overlay" id="expenseModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title"><i class="fa-solid fa-receipt" style="color:var(--accent-blue)"></i> <span id="em-title">Mark Expense</span></div>
+      <button class="modal-close" onclick="Utils.closeModal('expenseModal')">&times;</button>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Planned Amount</label>
+      <input class="form-control" id="em-planned" readonly>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Actual Amount Paid</label>
+      <input class="form-control" id="em-actual" type="number" placeholder="Enter actual amount">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Payment Date</label>
+      <input class="form-control" id="em-date" type="date">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Status</label>
+      <select class="form-control form-select" id="em-status">
+        <option value="paid">Paid</option>
+        <option value="skipped">Skipped</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Notes (optional)</label>
+      <input class="form-control" id="em-note" placeholder="Any notes...">
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="Utils.closeModal('expenseModal')">Cancel</button>
+      <button class="btn btn-primary" id="em-save">
+        <i class="fa-solid fa-check"></i> Save
+      </button>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script src="assets/js/data.js"></script>
+<script src="assets/js/utils.js"></script>
+<script src="assets/js/storage.js"></script>
+<script src="assets/js/income.js"></script>
+</body>
+</html>
