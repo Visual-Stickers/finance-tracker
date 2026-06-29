@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login — Finance Command Center</title>
+  <link rel="stylesheet" href="assets/css/style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    body {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      background: var(--bg-primary);
+    }
+
+    .login-wrap {
+      width: 100%;
+      max-width: 420px;
+      padding: 24px;
+    }
+
+    .login-brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 32px;
+      justify-content: center;
+    }
+
+    .login-brand .brand-icon {
+      width: 42px; height: 42px;
+      background: var(--grad-blue);
+      border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px;
+      color: #fff;
+    }
+
+    .login-brand span {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+
+    .login-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 32px;
+    }
+
+    .login-tabs {
+      display: flex;
+      gap: 4px;
+      background: var(--bg-secondary);
+      border-radius: var(--radius-sm);
+      padding: 4px;
+      margin-bottom: 28px;
+    }
+
+    .login-tab {
+      flex: 1;
+      padding: 8px;
+      text-align: center;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--text-secondary);
+      transition: var(--transition);
+      border: none;
+      background: none;
+    }
+
+    .login-tab.active {
+      background: var(--bg-card);
+      color: var(--text-primary);
+      box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+    }
+
+    .form-group {
+      margin-bottom: 16px;
+    }
+
+    .form-label {
+      display: block;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-secondary);
+      margin-bottom: 6px;
+    }
+
+    .form-input {
+      width: 100%;
+      padding: 10px 14px;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text-primary);
+      font-size: 14px;
+      font-family: inherit;
+      transition: var(--transition);
+      outline: none;
+    }
+
+    .form-input:focus {
+      border-color: var(--accent-blue);
+      box-shadow: 0 0 0 3px rgba(59,130,246,0.15);
+    }
+
+    .input-icon-wrap {
+      position: relative;
+    }
+
+    .input-icon-wrap .form-input {
+      padding-left: 38px;
+    }
+
+    .input-icon {
+      position: absolute;
+      left: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-muted);
+      font-size: 13px;
+    }
+
+    .btn-login {
+      width: 100%;
+      padding: 12px;
+      background: var(--grad-blue);
+      border: none;
+      border-radius: var(--radius-sm);
+      color: #fff;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      margin-top: 8px;
+      transition: var(--transition);
+      font-family: inherit;
+    }
+
+    .btn-login:hover { opacity: 0.9; transform: translateY(-1px); }
+    .btn-login:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+
+    .login-error {
+      background: rgba(239,68,68,0.12);
+      border: 1px solid rgba(239,68,68,0.3);
+      color: #ef4444;
+      border-radius: var(--radius-sm);
+      padding: 10px 14px;
+      font-size: 13px;
+      margin-bottom: 16px;
+      display: none;
+    }
+
+    .login-success {
+      background: rgba(16,185,129,0.12);
+      border: 1px solid rgba(16,185,129,0.3);
+      color: #10b981;
+      border-radius: var(--radius-sm);
+      padding: 10px 14px;
+      font-size: 13px;
+      margin-bottom: 16px;
+      display: none;
+    }
+
+    .forgot-link {
+      text-align: right;
+      margin-top: -8px;
+      margin-bottom: 16px;
+    }
+
+    .forgot-link a {
+      font-size: 12px;
+      color: var(--accent-blue);
+      text-decoration: none;
+      cursor: pointer;
+    }
+
+    .forgot-link a:hover { text-decoration: underline; }
+
+    .login-footer {
+      text-align: center;
+      margin-top: 20px;
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .spinner {
+      display: inline-block;
+      width: 14px; height: 14px;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      margin-right: 6px;
+      vertical-align: middle;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+
+<div class="login-wrap">
+  <div class="login-brand">
+    <div class="brand-icon"><i class="fa-solid fa-chart-line"></i></div>
+    <span>Finance Command Center</span>
+  </div>
+
+  <div class="login-card">
+    <div class="login-tabs">
+      <button class="login-tab active" onclick="switchTab('login')">Sign In</button>
+      <button class="login-tab" onclick="switchTab('signup')">Create Account</button>
+    </div>
+
+    <div id="errorMsg" class="login-error"></div>
+    <div id="successMsg" class="login-success"></div>
+
+    <!-- Sign In Form -->
+    <div id="loginForm">
+      <div class="form-group">
+        <label class="form-label">Email</label>
+        <div class="input-icon-wrap">
+          <i class="fa-solid fa-envelope input-icon"></i>
+          <input type="email" id="loginEmail" class="form-input" placeholder="you@example.com" autocomplete="email">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Password</label>
+        <div class="input-icon-wrap">
+          <i class="fa-solid fa-lock input-icon"></i>
+          <input type="password" id="loginPassword" class="form-input" placeholder="••••••••" autocomplete="current-password">
+        </div>
+      </div>
+      <div class="forgot-link">
+        <a onclick="switchTab('forgot')">Forgot password?</a>
+      </div>
+      <button class="btn-login" id="loginBtn" onclick="handleLogin()">
+        <i class="fa-solid fa-arrow-right-to-bracket"></i> Sign In
+      </button>
+    </div>
+
+    <!-- Sign Up Form -->
+    <div id="signupForm" style="display:none">
+      <div class="form-group">
+        <label class="form-label">Email</label>
+        <div class="input-icon-wrap">
+          <i class="fa-solid fa-envelope input-icon"></i>
+          <input type="email" id="signupEmail" class="form-input" placeholder="you@example.com" autocomplete="email">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Password</label>
+        <div class="input-icon-wrap">
+          <i class="fa-solid fa-lock input-icon"></i>
+          <input type="password" id="signupPassword" class="form-input" placeholder="Min. 6 characters" autocomplete="new-password">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Confirm Password</label>
+        <div class="input-icon-wrap">
+          <i class="fa-solid fa-lock input-icon"></i>
+          <input type="password" id="signupConfirm" class="form-input" placeholder="Re-enter password" autocomplete="new-password">
+        </div>
+      </div>
+      <button class="btn-login" id="signupBtn" onclick="handleSignup()">
+        <i class="fa-solid fa-user-plus"></i> Create Account
+      </button>
+    </div>
+
+    <!-- Forgot Password Form -->
+    <div id="forgotForm" style="display:none">
+      <p style="color:var(--text-secondary);font-size:13px;margin-bottom:16px;">
+        Enter your email and we'll send you a reset link.
+      </p>
+      <div class="form-group">
+        <label class="form-label">Email</label>
+        <div class="input-icon-wrap">
+          <i class="fa-solid fa-envelope input-icon"></i>
+          <input type="email" id="forgotEmail" class="form-input" placeholder="you@example.com">
+        </div>
+      </div>
+      <button class="btn-login" id="forgotBtn" onclick="handleForgot()">
+        <i class="fa-solid fa-paper-plane"></i> Send Reset Link
+      </button>
+      <div style="text-align:center;margin-top:12px;">
+        <a onclick="switchTab('login')" style="font-size:13px;color:var(--accent-blue);cursor:pointer;">← Back to Sign In</a>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="login-footer">Your data is private and securely stored</div>
+</div>
+
+<script src="assets/js/supabase-client.js"></script>
+<script>
+  // Check if already logged in
+  (async () => {
+    const session = await Auth.getSession();
+    if (session) const base = window.location.pathname.substring(0, window.location.pathname.lastIndexOf('/') + 1); window.location.href = base + 'index.html';
+  })();
+
+  function switchTab(tab) {
+    document.getElementById('loginForm').style.display = tab === 'login' ? '' : 'none';
+    document.getElementById('signupForm').style.display = tab === 'signup' ? '' : 'none';
+    document.getElementById('forgotForm').style.display = tab === 'forgot' ? '' : 'none';
+    document.querySelectorAll('.login-tab').forEach((t, i) => {
+      t.classList.toggle('active', (i === 0 && tab === 'login') || (i === 1 && tab === 'signup'));
+    });
+    clearMessages();
+  }
+
+  function showError(msg) {
+    const el = document.getElementById('errorMsg');
+    el.textContent = msg;
+    el.style.display = 'block';
+    document.getElementById('successMsg').style.display = 'none';
+  }
+
+  function showSuccess(msg) {
+    const el = document.getElementById('successMsg');
+    el.textContent = msg;
+    el.style.display = 'block';
+    document.getElementById('errorMsg').style.display = 'none';
+  }
+
+  function clearMessages() {
+    document.getElementById('errorMsg').style.display = 'none';
+    document.getElementById('successMsg').style.display = 'none';
+  }
+
+  function setLoading(btnId, loading) {
+    const btn = document.getElementById(btnId);
+    btn.disabled = loading;
+    if (loading) {
+      btn.dataset.orig = btn.innerHTML;
+      btn.innerHTML = '<span class="spinner"></span> Please wait...';
+    } else {
+      btn.innerHTML = btn.dataset.orig;
+    }
+  }
+
+  async function handleLogin() {
+    clearMessages();
+    const email = document.getElementById('loginEmail').value.trim();
+    const password = document.getElementById('loginPassword').value;
+    if (!email || !password) { showError('Please enter your email and password.'); return; }
+    setLoading('loginBtn', true);
+    try {
+      await Auth.signIn(email, password);
+      const base = window.location.pathname.substring(0, window.location.pathname.lastIndexOf('/') + 1); window.location.href = base + 'index.html';
+    } catch (err) {
+      showError(err.message || 'Sign in failed. Please try again.');
+      setLoading('loginBtn', false);
+    }
+  }
+
+  async function handleSignup() {
+    clearMessages();
+    const email = document.getElementById('signupEmail').value.trim();
+    const password = document.getElementById('signupPassword').value;
+    const confirm = document.getElementById('signupConfirm').value;
+    if (!email || !password) { showError('Please fill in all fields.'); return; }
+    if (password.length < 6) { showError('Password must be at least 6 characters.'); return; }
+    if (password !== confirm) { showError('Passwords do not match.'); return; }
+    setLoading('signupBtn', true);
+    try {
+      await Auth.signUp(email, password);
+      showSuccess('Account created! Please check your email to confirm, then sign in.');
+      setLoading('signupBtn', false);
+    } catch (err) {
+      showError(err.message || 'Sign up failed. Please try again.');
+      setLoading('signupBtn', false);
+    }
+  }
+
+  async function handleForgot() {
+    clearMessages();
+    const email = document.getElementById('forgotEmail').value.trim();
+    if (!email) { showError('Please enter your email address.'); return; }
+    setLoading('forgotBtn', true);
+    try {
+      await Auth.resetPassword(email);
+      showSuccess('Reset link sent! Check your email.');
+      setLoading('forgotBtn', false);
+    } catch (err) {
+      showError(err.message || 'Failed to send reset link.');
+      setLoading('forgotBtn', false);
+    }
+  }
+
+  // Allow Enter key to submit
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Enter') {
+      if (document.getElementById('loginForm').style.display !== 'none') handleLogin();
+      else if (document.getElementById('signupForm').style.display !== 'none') handleSignup();
+      else if (document.getElementById('forgotForm').style.display !== 'none') handleForgot();
+    }
+  });
+</script>
+</body>
+</html>
