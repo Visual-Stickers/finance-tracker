@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Loans – Finance Command Center</title>
+  <link rel="stylesheet" href="assets/css/style.css">
+  <link rel="stylesheet" href="assets/css/pages.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+
+<nav class="nav">
+  <a href="index.html" class="nav-brand">
+    <div class="brand-icon"><i class="fa-solid fa-chart-line"></i></div>
+    <span class="brand-name">Finance Command Center</span>
+  </a>
+  <ul class="nav-links">
+    <li><a href="index.html"><i class="fa-solid fa-gauge-high"></i><span>Dashboard</span></a></li>
+    <li><a href="income-expense.html"><i class="fa-solid fa-arrows-left-right"></i><span>Income & Expense</span></a></li>
+    <li><a href="loans.html" class="active"><i class="fa-solid fa-landmark"></i><span>Loans</span></a></li>
+    <li><a href="credit-cards.html"><i class="fa-solid fa-credit-card"></i><span>Credit Cards</span></a></li>
+    <li><a href="reports.html"><i class="fa-solid fa-chart-pie"></i><span>Reports</span></a></li>
+    <li><a href="settings.html"><i class="fa-solid fa-gear"></i><span>Settings</span></a></li>
+  </ul>
+  <span class="nav-date" id="navDate"></span>
+  <button class="btn-signout" onclick="Auth.signOut()" title="Sign Out"><i class="fa-solid fa-right-from-bracket"></i> <span>Sign Out</span></button>
+</nav>
+
+<div class="page">
+  <div class="page-header" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
+    <div>
+      <h1><i class="fa-solid fa-landmark" style="color:var(--accent-red);font-size:22px"></i> Loans</h1>
+      <p>Track your loan balances and EMI payments.</p>
+    </div>
+    <button class="btn btn-primary" onclick="openAddLoanModal()">
+      <i class="fa-solid fa-plus"></i> Add Loan
+    </button>
+  </div>
+
+  <div id="loanCards" class="grid-auto"></div>
+</div>
+
+<!-- EMI Payment Modal -->
+<div class="modal-overlay" id="emiModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title"><i class="fa-solid fa-landmark" style="color:var(--accent-red)"></i> Mark EMI Paid</div>
+      <button class="modal-close" onclick="Utils.closeModal('emiModal')">&times;</button>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Loan</label>
+      <input class="form-control" id="emi-loan-name" readonly>
+    </div>
+    <div class="form-group">
+      <label class="form-label">EMI Amount</label>
+      <input class="form-control" id="emi-planned" readonly>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Actual Amount Paid</label>
+      <input class="form-control" type="number" id="emi-actual" placeholder="Enter amount">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Payment Date</label>
+      <input class="form-control" type="date" id="emi-date">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Notes</label>
+      <input class="form-control" id="emi-note" placeholder="Any notes...">
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="Utils.closeModal('emiModal')">Cancel</button>
+      <button class="btn btn-success" id="emi-save"><i class="fa-solid fa-check"></i> Confirm Payment</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add Loan Modal -->
+<div class="modal-overlay" id="addLoanModal">
+  <div class="modal" style="max-width:520px">
+    <div class="modal-header">
+      <div class="modal-title"><i class="fa-solid fa-plus" style="color:var(--accent-blue)"></i> Add New Loan</div>
+      <button class="modal-close" onclick="Utils.closeModal('addLoanModal')">&times;</button>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Loan Name</label>
+        <input class="form-control" id="al-name" placeholder="e.g. SBI Home Loan">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Bank</label>
+        <input class="form-control" id="al-bank" placeholder="e.g. SBI">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Principal (₹)</label>
+        <input class="form-control" type="number" id="al-principal" placeholder="5000000">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Outstanding (₹)</label>
+        <input class="form-control" type="number" id="al-outstanding" placeholder="4800000">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">EMI (₹/month)</label>
+        <input class="form-control" type="number" id="al-emi" placeholder="45000">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Interest Rate (%)</label>
+        <input class="form-control" type="number" id="al-rate" placeholder="8.5" step="0.01">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Tenure (months)</label>
+        <input class="form-control" type="number" id="al-tenure" placeholder="240">
+      </div>
+      <div class="form-group">
+        <label class="form-label">EMIs Paid</label>
+        <input class="form-control" type="number" id="al-paid" placeholder="0">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Start Date</label>
+        <input class="form-control" type="date" id="al-start">
+      </div>
+      <div class="form-group">
+        <label class="form-label">End Date</label>
+        <input class="form-control" type="date" id="al-end">
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="Utils.closeModal('addLoanModal')">Cancel</button>
+      <button class="btn btn-primary" id="al-save"><i class="fa-solid fa-plus"></i> Add Loan</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="assets/js/supabase-client.js"></script>
+<script src="assets/js/data.js"></script>
+<script src="assets/js/utils.js"></script>
+<script src="assets/js/storage.js"></script>
+<script src="assets/js/loan.js"></script>
+</body>
+</html>
