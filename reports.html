@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Reports – Finance Command Center</title>
+  <link rel="stylesheet" href="assets/css/style.css">
+  <link rel="stylesheet" href="assets/css/pages.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+
+<nav class="nav">
+  <a href="index.html" class="nav-brand">
+    <div class="brand-icon"><i class="fa-solid fa-chart-line"></i></div>
+    <span class="brand-name">Finance Command Center</span>
+  </a>
+  <ul class="nav-links">
+    <li><a href="index.html"><i class="fa-solid fa-gauge-high"></i><span>Dashboard</span></a></li>
+    <li><a href="income-expense.html"><i class="fa-solid fa-arrows-left-right"></i><span>Income & Expense</span></a></li>
+    <li><a href="loans.html"><i class="fa-solid fa-landmark"></i><span>Loans</span></a></li>
+    <li><a href="credit-cards.html"><i class="fa-solid fa-credit-card"></i><span>Credit Cards</span></a></li>
+    <li><a href="reports.html" class="active"><i class="fa-solid fa-chart-pie"></i><span>Reports</span></a></li>
+    <li><a href="settings.html"><i class="fa-solid fa-gear"></i><span>Settings</span></a></li>
+  </ul>
+  <span class="nav-date" id="navDate"></span>
+  <button class="btn-signout" onclick="Auth.signOut()" title="Sign Out"><i class="fa-solid fa-right-from-bracket"></i> <span>Sign Out</span></button>
+</nav>
+
+<div class="page">
+  <div class="page-header">
+    <h1><i class="fa-solid fa-chart-pie" style="color:var(--accent-purple);font-size:22px"></i> Reports & Analytics</h1>
+    <p>Visual overview of your complete financial picture.</p>
+  </div>
+
+  <!-- Tabs -->
+  <div class="report-tabs">
+    <button class="report-tab active" id="tab-monthly" onclick="switchTab('monthly')">
+      <i class="fa-solid fa-calendar-day"></i> Monthly
+    </button>
+    <button class="report-tab" id="tab-yearly" onclick="switchTab('yearly')">
+      <i class="fa-solid fa-calendar"></i> Yearly
+    </button>
+  </div>
+
+  <!-- ── MONTHLY VIEW ── -->
+  <div id="view-monthly">
+
+    <!-- Month Nav -->
+    <div class="month-nav" style="margin-bottom:20px">
+      <button class="month-nav-btn" onclick="shiftReportMonth(-1)"><i class="fa-solid fa-chevron-left"></i></button>
+      <div class="month-nav-center">
+        <span class="month-nav-label" id="rpt-monthLabel" style="cursor:pointer" onclick="openRptMonthPicker()">—</span>
+        <i class="fa-solid fa-chevron-down" style="font-size:11px;color:var(--text-muted);margin-left:6px;cursor:pointer" onclick="openRptMonthPicker()"></i>
+      </div>
+      <button class="month-nav-btn" onclick="shiftReportMonth(1)"><i class="fa-solid fa-chevron-right"></i></button>
+    </div>
+
+    <!-- Month Picker -->
+    <div class="month-picker-overlay" id="rptPickerOverlay" onclick="closeRptMonthPicker()" style="display:none"></div>
+    <div class="month-picker" id="rptMonthPicker" style="display:none">
+      <div class="month-picker-head">
+        <button class="month-nav-btn" onclick="shiftRptPickerYear(-1)"><i class="fa-solid fa-chevron-left"></i></button>
+        <span id="rptPickerYear" style="font-weight:700;font-size:15px"></span>
+        <button class="month-nav-btn" onclick="shiftRptPickerYear(1)"><i class="fa-solid fa-chevron-right"></i></button>
+      </div>
+      <div class="month-picker-grid" id="rptPickerGrid"></div>
+    </div>
+
+    <!-- Monthly Summary Cards -->
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:20px">
+      <div class="card" style="text-align:center;padding:16px">
+        <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px">Planned Income</div>
+        <div style="font-size:20px;font-weight:700;color:var(--accent-green)" id="m-planned-income">—</div>
+      </div>
+      <div class="card" style="text-align:center;padding:16px">
+        <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px">Actual Income</div>
+        <div style="font-size:20px;font-weight:700;color:var(--accent-green)" id="m-actual-income">—</div>
+      </div>
+      <div class="card" style="text-align:center;padding:16px">
+        <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px">Planned Expenses</div>
+        <div style="font-size:20px;font-weight:700;color:var(--accent-red)" id="m-planned-exp">—</div>
+      </div>
+      <div class="card" style="text-align:center;padding:16px">
+        <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px">Actual Expenses</div>
+        <div style="font-size:20px;font-weight:700;color:var(--accent-red)" id="m-actual-exp">—</div>
+      </div>
+    </div>
+
+    <!-- Monthly Charts -->
+    <div class="grid-2" style="margin-bottom:16px">
+      <div class="report-chart-card">
+        <h3><i class="fa-solid fa-chart-bar"></i> Income vs Expense</h3>
+        <canvas id="m-ie-chart"></canvas>
+      </div>
+      <div class="report-chart-card">
+        <h3><i class="fa-solid fa-chart-pie"></i> Expense Breakdown</h3>
+        <canvas id="m-exp-break" style="max-height:260px"></canvas>
+      </div>
+    </div>
+
+    <!-- Monthly Expense Table -->
+    <div class="report-chart-card">
+      <h3><i class="fa-solid fa-table"></i> Expense Detail</h3>
+      <div style="overflow-x:auto">
+        <table class="data-table" id="m-table"></table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── YEARLY VIEW ── -->
+  <div id="view-yearly" style="display:none">
+
+    <!-- Year Nav -->
+    <div class="month-nav" style="margin-bottom:20px">
+      <button class="month-nav-btn" onclick="shiftYear(-1)"><i class="fa-solid fa-chevron-left"></i></button>
+      <div class="month-nav-center">
+        <span class="month-nav-label" id="rpt-yearLabel">—</span>
+      </div>
+      <button class="month-nav-btn" onclick="shiftYear(1)"><i class="fa-solid fa-chevron-right"></i></button>
+    </div>
+
+    <!-- Yearly Summary Cards -->
+    <div class="card" style="background:linear-gradient(135deg,#1e1b4b,#2d1b69);border-color:rgba(139,92,246,0.25);margin-bottom:20px">
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:20px;text-align:center">
+        <div>
+          <div style="font-size:11px;color:#a78bfa;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px">Total Income</div>
+          <div style="font-size:22px;font-weight:700;color:#10b981" id="y-total-income">—</div>
+        </div>
+        <div>
+          <div style="font-size:11px;color:#a78bfa;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px">Total Expenses</div>
+          <div style="font-size:22px;font-weight:700;color:#ef4444" id="y-total-exp">—</div>
+        </div>
+        <div>
+          <div style="font-size:11px;color:#a78bfa;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px">Loan Outstanding</div>
+          <div style="font-size:22px;font-weight:700;color:#f59e0b" id="y-loan-os">—</div>
+        </div>
+        <div>
+          <div style="font-size:11px;color:#a78bfa;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px">Net Savings</div>
+          <div style="font-size:22px;font-weight:700;color:#8b5cf6" id="y-savings">—</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Yearly Charts Row 1 -->
+    <div class="grid-2" style="margin-bottom:16px">
+      <div class="report-chart-card">
+        <h3><i class="fa-solid fa-chart-bar"></i> Monthly Income vs Expense</h3>
+        <canvas id="y-ie-chart"></canvas>
+      </div>
+      <div class="report-chart-card">
+        <h3><i class="fa-solid fa-wave-square"></i> Cumulative Balance Trend</h3>
+        <canvas id="y-balance-chart"></canvas>
+      </div>
+    </div>
+
+    <!-- Yearly Charts Row 2 -->
+    <div class="grid-2" style="margin-bottom:16px">
+      <div class="report-chart-card">
+        <h3><i class="fa-solid fa-chart-pie"></i> Yearly Expense Breakdown</h3>
+        <canvas id="y-exp-break" style="max-height:260px"></canvas>
+      </div>
+      <div class="report-chart-card">
+        <h3><i class="fa-solid fa-landmark"></i> Loan Reduction Forecast</h3>
+        <canvas id="y-loan-chart"></canvas>
+      </div>
+    </div>
+
+    <!-- Yearly Table -->
+    <div class="report-chart-card">
+      <h3><i class="fa-solid fa-table"></i> Month-by-Month Summary</h3>
+      <div style="overflow-x:auto">
+        <table class="data-table" id="y-table"></table>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="assets/js/supabase-client.js"></script>
+<script src="assets/js/data.js"></script>
+<script src="assets/js/utils.js"></script>
+<script src="assets/js/storage.js"></script>
+<script src="assets/js/reports.js"></script>
+</body>
+</html>
