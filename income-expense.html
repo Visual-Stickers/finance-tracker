@@ -56,9 +56,9 @@
 
   <!-- Summary -->
   <div class="grid-4" style="margin-bottom:20px">
-    <div class="card card-sm"><div style="font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Planned Income</div><div style="font-size:18px;font-weight:700;color:var(--green)" id="s-pi">—</div></div>
+    <div class="card card-sm"><div style="font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Planned Income</div><div style="font-size:18px;font-weight:700" id="s-pi">—</div></div>
     <div class="card card-sm"><div style="font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Actual Income</div><div style="font-size:18px;font-weight:700;color:var(--green)" id="s-ai">—</div></div>
-    <div class="card card-sm"><div style="font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Planned Expenses</div><div style="font-size:18px;font-weight:700;color:var(--red)" id="s-pe">—</div></div>
+    <div class="card card-sm"><div style="font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Planned Expenses</div><div style="font-size:18px;font-weight:700" id="s-pe">—</div></div>
     <div class="card card-sm"><div style="font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Actual Expenses</div><div style="font-size:18px;font-weight:700;color:var(--red)" id="s-ae">—</div></div>
   </div>
 
@@ -250,7 +250,7 @@ async function render() {
   document.getElementById('monthLabel').textContent = Utils.monthLabel(_curMk);
   const m = _months[_curMk];
   if (!m) {
-    document.getElementById('incomeList').innerHTML = `<div class="empty"><i class="fa fa-calendar-xmark"></i><p>No data for this month</p><button class="btn btn-primary btn-sm" onclick="openNewMonthModal()"><i class="fa fa-plus"></i> Create Month</button></div>`;
+    document.getElementById('incomeList').innerHTML = `<div class="empty"><i class="fa fa-calendar-xmark"></i><p>No data for this month</p><button class="btn btn-primary btn-sm" onclick="openNewMonthModal()">Create Month</button></div>`;
     document.getElementById('expenseList').innerHTML = '';
     ['s-pi','s-ai','s-pe','s-ae','income-total','expense-total'].forEach(id => document.getElementById(id).textContent = '—');
     return;
@@ -277,12 +277,13 @@ function renderIncome(m) {
   </div>`;
   m.extraIncomes.forEach(e => {
     const sc2 = e.status==='received' ? 'badge-green' : 'badge-blue';
+    const statusText = e.status==='received' ? 'Received' : 'Expected';
     html += `<div class="ie-item">
       <div class="ie-icon" style="background:rgba(63,185,80,0.1);color:var(--green)"><i class="fa fa-coins"></i></div>
-      <div class="ie-body"><div class="ie-name">${e.name}</div><div class="ie-sub"><span class="badge ${sc2}">${e.status==='received'?'Received':'Expected'}</span></div></div>
+      <div class="ie-body"><div class="ie-name">${e.name}</div><div class="ie-sub"><span class="badge ${sc2}">${statusText}</span>${e.date ? ' · '+Utils.shortDate(e.date) : ''}</div></div>
       <div class="ie-right"><div class="ie-amount" style="color:var(--green)">${e.actual!=null?Utils.currency(e.actual):'—'}</div><div class="ie-planned">Planned: ${Utils.currency(e.planned)}</div></div>
       <div class="ie-actions">
-        <button class="btn-icon" onclick="openMarkExtraIncome('${e.id}','${e.name}',${e.planned},${e.actual||e.planned})" title="Mark Received"><i class="fa ${e.status==='received'?'fa-pen':'fa-check'}"></i></button>
+        <button class="btn-icon" onclick="openMarkExtraIncome('${e.id}','${e.name}',${e.planned},${e.actual||e.planned},'${e.date||''}','${e.status||'expected'}')" title="Mark Received"><i class="fa ${e.status==='received'?'fa-pen':'fa-check'}"></i></button>
         <button class="btn-icon" onclick="deleteItem('${e.id}')" title="Delete" style="color:var(--red)"><i class="fa fa-trash"></i></button>
       </div>
     </div>`;
@@ -394,7 +395,7 @@ function openMarkIncome() {
 }
 async function saveIncome() {
   const actual = parseFloat(document.getElementById('im-actual').value);
-  if (isNaN(actual)) { Utils.toast('Enter a valid amount','error'); return; }
+  if (isNaN(actual) || actual < 0) { Utils.toast('Enter a valid amount (>= 0)','error'); return; }
   await DB.saveMonthIncome(_user.id, _curMk, {
     incomeActual: actual, incomeStatus: 'received',
     incomeDate: document.getElementById('im-date').value,
@@ -412,22 +413,22 @@ function openAddIncome() {
 async function saveAddIncome() {
   const name   = document.getElementById('ai-name').value.trim();
   const amount = parseFloat(document.getElementById('ai-amount').value);
-  if (!name||isNaN(amount)) { Utils.toast('Enter name and amount','error'); return; }
+  if (!name||isNaN(amount)||amount<=0) { Utils.toast('Enter name and positive amount','error'); return; }
   await DB.addExpense(_user.id, _curMk, { name, planned: amount, note: document.getElementById('ai-note').value, isIncome: true });
   Utils.closeModal('addIncomeModal'); Utils.toast('Income source added!'); await render();
 }
 
-function openMarkExtraIncome(id, name, planned, actual) {
+function openMarkExtraIncome(id, name, planned, actual, date, status) {
   _activeExtraId = id;
   document.getElementById('ei-title').textContent = 'Mark "'+name+'" Received';
   document.getElementById('ei-planned').value = Utils.currency(planned);
   document.getElementById('ei-actual').value  = actual || planned;
-  document.getElementById('ei-date').value    = new Date().toISOString().split('T')[0];
+  document.getElementById('ei-date').value    = date || new Date().toISOString().split('T')[0];
   Utils.openModal('extraIncomeModal');
 }
 async function saveExtraIncome() {
   const actual = parseFloat(document.getElementById('ei-actual').value);
-  if (isNaN(actual)) { Utils.toast('Enter a valid amount','error'); return; }
+  if (isNaN(actual) || actual < 0) { Utils.toast('Enter a valid amount (>= 0)','error'); return; }
   await DB.updateExpense(_user.id, _activeExtraId, { actual, status:'received', date: document.getElementById('ei-date').value });
   Utils.closeModal('extraIncomeModal'); Utils.toast('Income marked received!'); await render();
 }
@@ -445,7 +446,7 @@ function openMarkExpense(id, name, planned, actual, status, note) {
 }
 async function saveExpense() {
   const actual = parseFloat(document.getElementById('em-actual').value);
-  if (isNaN(actual)) { Utils.toast('Enter a valid amount','error'); return; }
+  if (isNaN(actual) || actual < 0) { Utils.toast('Enter a valid amount (>= 0)','error'); return; }
   await DB.updateExpense(_user.id, _activeExpId, {
     actual, status: document.getElementById('em-status').value,
     date: document.getElementById('em-date').value,
@@ -463,7 +464,7 @@ function openAddExpense() {
 async function saveAddExpense() {
   const name   = document.getElementById('ae-name').value.trim();
   const amount = parseFloat(document.getElementById('ae-amount').value);
-  if (!name||isNaN(amount)) { Utils.toast('Enter name and amount','error'); return; }
+  if (!name||isNaN(amount)||amount<=0) { Utils.toast('Enter name and positive amount','error'); return; }
   await DB.addExpense(_user.id, _curMk, { name, planned: amount, note: document.getElementById('ae-note').value, isIncome: false });
   Utils.closeModal('addExpenseModal'); Utils.toast('Expense added!'); await render();
 }
@@ -508,8 +509,8 @@ function parseExcelRows(rows) {
   const d = new Date(mk+'-01');
   const label = d.toLocaleDateString('en-IN',{month:'short',year:'numeric'});
   let html = `<div style="font-weight:700;margin-bottom:12px">Month: ${label}</div>`;
-  if (incomes.length) { html += `<div style="font-size:12px;font-weight:600;color:var(--green);margin-bottom:6px">INCOME</div>`; incomes.forEach(i => { html += `<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px"><span>${i.name}</span><span style="color:var(--green)">${Utils.currency(i.amount)}</span></div>`; }); }
-  if (expenses.length) { html += `<div style="font-size:12px;font-weight:600;color:var(--red);margin:12px 0 6px">EXPENSES</div>`; expenses.forEach(e => { html += `<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px"><span>${e.name}</span><span style="color:var(--red)">${Utils.currency(e.amount)}</span></div>`; }); }
+  if (incomes.length) { html += `<div style="font-size:12px;font-weight:600;color:var(--green);margin-bottom:6px">INCOME</div>`; incomes.forEach(i => { html += `<div style="display:flex;justify-content:space-between;font-size:12px;padding:4px 0"><span>${i.name}</span><span>${Utils.currency(i.amount)}</span></div>`; }); }
+  if (expenses.length) { html += `<div style="font-size:12px;font-weight:600;color:var(--red);margin:12px 0 6px">EXPENSES</div>`; expenses.forEach(e => { html += `<div style="display:flex;justify-content:space-between;font-size:12px;padding:4px 0"><span>${e.name}</span><span>${Utils.currency(e.amount)}</span></div>`; }); }
   document.getElementById('xlPreview').innerHTML = html;
   Utils.openModal('xlPreviewModal');
 }
