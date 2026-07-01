@@ -28,7 +28,10 @@
 </nav>
 
 <div class="page">
-  <div class="page-header"><h1><i class="fa fa-chart-pie" style="color:var(--purple)"></i> Reports</h1><p>Visual overview of your financial data.</p></div>
+  <div class="page-header" style="display:flex;align-items:center;justify-content:space-between">
+    <div><h1><i class="fa fa-chart-pie" style="color:var(--purple)"></i> Reports</h1><p>Visual overview of your financial data.</p></div>
+    <button class="btn btn-primary" onclick="exportCurrentReport()"><i class="fa fa-download"></i> Export Report</button>
+  </div>
 
   <!-- Tabs -->
   <div class="report-tabs">
@@ -54,9 +57,9 @@
     </div>
 
     <div class="grid-4" style="margin-bottom:20px">
-      <div class="card card-sm"><div style="font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Planned Income</div><div style="font-size:18px;font-weight:700;color:var(--green)" id="m-pi">—</div></div>
+      <div class="card card-sm"><div style="font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Planned Income</div><div style="font-size:18px;font-weight:700" id="m-pi">—</div></div>
       <div class="card card-sm"><div style="font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Actual Income</div><div style="font-size:18px;font-weight:700;color:var(--green)" id="m-ai">—</div></div>
-      <div class="card card-sm"><div style="font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Planned Expense</div><div style="font-size:18px;font-weight:700;color:var(--red)" id="m-pe">—</div></div>
+      <div class="card card-sm"><div style="font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Planned Expense</div><div style="font-size:18px;font-weight:700" id="m-pe">—</div></div>
       <div class="card card-sm"><div style="font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Actual Expense</div><div style="font-size:18px;font-weight:700;color:var(--red)" id="m-ae">—</div></div>
     </div>
     <div class="grid-2" style="margin-bottom:16px">
@@ -77,10 +80,10 @@
     </div>
     <div class="card" style="margin-bottom:20px;background:linear-gradient(135deg,#1a1b2e,#2d1b69);border-color:rgba(188,140,255,0.2)">
       <div class="grid-4">
-        <div style="text-align:center"><div style="font-size:11px;color:#a78bfa;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Total Income</div><div style="font-size:22px;font-weight:700;color:var(--green)" id="y-ti">—</div></div>
-        <div style="text-align:center"><div style="font-size:11px;color:#a78bfa;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Total Expense</div><div style="font-size:22px;font-weight:700;color:var(--red)" id="y-te">—</div></div>
-        <div style="text-align:center"><div style="font-size:11px;color:#a78bfa;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Net Savings</div><div style="font-size:22px;font-weight:700;color:var(--purple)" id="y-ns">—</div></div>
-        <div style="text-align:center"><div style="font-size:11px;color:#a78bfa;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Savings Rate</div><div style="font-size:22px;font-weight:700;color:var(--blue)" id="y-sr">—</div></div>
+        <div style="text-align:center"><div style="font-size:11px;color:#a78bfa;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Total Income</div><div style="font-size:22px;font-weight:700;color:#fff" id="y-ti">—</div></div>
+        <div style="text-align:center"><div style="font-size:11px;color:#a78bfa;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Total Expense</div><div style="font-size:22px;font-weight:700;color:#fff" id="y-te">—</div></div>
+        <div style="text-align:center"><div style="font-size:11px;color:#a78bfa;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Net Savings</div><div style="font-size:22px;font-weight:700;color:#fff" id="y-ns">—</div></div>
+        <div style="text-align:center"><div style="font-size:11px;color:#a78bfa;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Savings Rate</div><div style="font-size:22px;font-weight:700;color:#fff" id="y-sr">—</div></div>
       </div>
     </div>
     <div class="grid-2" style="margin-bottom:16px">
@@ -105,14 +108,14 @@
 <script src="assets/js/theme.js"></script>
 <script src="assets/js/storage.js"></script>
 <script>
-let _user, _months = {}, _loans = [], _curMo = Utils.monthKey(new Date()), _curYr = new Date().getFullYear(), _moPickerYr = new Date().getFullYear(), _charts = {};
+let _user, _months = {}, _loans = [], _curMo = Utils.monthKey(new Date()), _curYr = new Date().getFullYear(), _moPickerYr = new Date().getFullYear(), _charts = {}, _currentTab = 'monthly', _lastSyncTime = 0;
 
 const COLORS = ['#58a6ff','#f85149','#3fb950','#d29922','#bc8cff','#db6d28','#06b6d4','#ec4899'];
 
 const COPTS = {
   responsive:true, maintainAspectRatio:false, animation:{duration:400},
   plugins:{ legend:{labels:{color:'#8b949e',font:{size:11}}}, tooltip:{backgroundColor:'#161b22',borderColor:'#30363d',borderWidth:1,titleColor:'#f0f6fc',bodyColor:'#8b949e',callbacks:{label:c=>' '+Utils.currency(c.raw)}} },
-  scales:{ x:{ticks:{color:'#8b949e',font:{size:11}},grid:{color:'rgba(255,255,255,0.04)'}}, y:{ticks:{color:'#8b949e',font:{size:11},callback:v=>'₹'+(v/1000).toFixed(0)+'k'},grid:{color:'rgba(255,255,255,0.05)'}} }
+  scales:{ x:{ticks:{color:'#8b949e',font:{size:11}},grid:{color:'rgba(255,255,255,0.04)'}}, y:{ticks:{color:'#8b949e',font:{size:11},callback:v=>'₹'+(v/1000).toFixed(0)+'k'},grid:{color:'rgba(255,255,255,0.04)'}} }
 };
 
 function dc(id) {
@@ -127,16 +130,45 @@ function mkChart(id, type, data, opts) {
   _charts[id] = new Chart(el, { type, data, options: opts || COPTS });
 }
 
+// ── Listen for data changes from other pages ──
+if (typeof BroadcastChannel !== 'undefined') {
+  const bc = new BroadcastChannel('finance_tracker_data');
+  bc.onmessage = (event) => {
+    if (event.data.type === 'data_changed') {
+      // Debounce: only refresh if more than 1 second has passed
+      if (Date.now() - _lastSyncTime > 1000) {
+        _lastSyncTime = Date.now();
+        loadReports();
+      }
+    }
+  };
+}
+
+// Also listen for localStorage changes (same tab)
+window.addEventListener('storage', (e) => {
+  if (e.key === '_finance_tracker_sync' && _user) {
+    if (Date.now() - _lastSyncTime > 1000) {
+      _lastSyncTime = Date.now();
+      loadReports();
+    }
+  }
+});
+
 document.addEventListener('DOMContentLoaded', async () => {
   _user = await Auth.requireAuth(); if (!_user) return;
   Theme.init();
   document.getElementById('navDate').textContent = new Date().toLocaleDateString('en-IN',{weekday:'short',day:'numeric',month:'short',year:'numeric'});
   await DB.seed(_user.id);
-  [_months, _loans] = await Promise.all([DB.getMonths(_user.id), DB.getLoans(_user.id)]);
-  renderMonthly();
+  await loadReports();
 });
 
+async function loadReports() {
+  [_months, _loans] = await Promise.all([DB.getMonths(_user.id), DB.getLoans(_user.id)]);
+  if (_currentTab === 'monthly') renderMonthly(); else renderYearly();
+}
+
 function switchTab(tab) {
+  _currentTab = tab;
   document.getElementById('view-monthly').style.display = tab==='monthly' ? '' : 'none';
   document.getElementById('view-yearly').style.display  = tab==='yearly'  ? '' : 'none';
   document.getElementById('tab-monthly').classList.toggle('active', tab==='monthly');
@@ -144,6 +176,7 @@ function switchTab(tab) {
   if (tab==='monthly') renderMonthly(); else renderYearly();
 }
 
+// ── FIX #8: Updated income calculations to include extra incomes ──
 // ── Monthly ──
 function renderMonthly() {
   document.getElementById('mo-label').textContent = Utils.monthLabel(_curMo);
@@ -154,27 +187,40 @@ function renderMonthly() {
     document.getElementById('m-table').innerHTML = '<tr><td colspan="4" style="text-align:center;padding:24px;color:var(--text2)">No data for this month</td></tr>';
     return;
   }
+  
+  // Calculate all income sources
   const pe = m.expenses.reduce((s,e)=>s+(e.planned||0),0);
   const ae = m.expenses.reduce((s,e)=>s+(e.actual||0),0);
-  document.getElementById('m-pi').textContent = Utils.currency(m.income||0);
-  document.getElementById('m-ai').textContent = Utils.currency(m.incomeActual||0);
+  
+  // FIXED: Include extra income in planned and actual
+  const plannedMainIncome = m.income || 0;
+  const plannedExtraIncome = m.extraIncomes.reduce((s,e) => s + (e.planned||0), 0);
+  const totalPlannedIncome = plannedMainIncome + plannedExtraIncome;
+  
+  const actualMainIncome = m.incomeStatus === 'received' ? Number(m.incomeActual || 0) : 0;
+  const actualExtraIncome = m.extraIncomes.reduce((s,e) => s + (e.status === 'received' ? Number(e.actual || 0) : 0), 0);
+  const totalActualIncome = actualMainIncome + actualExtraIncome;
+  
+  document.getElementById('m-pi').textContent = Utils.currency(totalPlannedIncome);
+  document.getElementById('m-ai').textContent = Utils.currency(totalActualIncome);
   document.getElementById('m-pe').textContent = Utils.currency(pe);
   document.getElementById('m-ae').textContent = Utils.currency(ae);
 
   mkChart('m-ie','bar',{
     labels:['Planned Income','Actual Income','Planned Expense','Actual Expense'],
-    datasets:[{data:[m.income||0,m.incomeActual||0,pe,ae],backgroundColor:['rgba(63,185,80,0.6)','rgba(63,185,80,1)','rgba(248,81,73,0.6)','rgba(248,81,73,1)'],borderRadius:4}]
+    datasets:[{data:[totalPlannedIncome, totalActualIncome, pe, ae],backgroundColor:['rgba(63,185,80,0.6)','rgba(63,185,80,1)','rgba(248,81,73,0.6)','rgba(248,81,73,1)'],borderRadius:4}]
   },{...COPTS,plugins:{...COPTS.plugins,legend:{display:false}}});
 
   const expItems = m.expenses.filter(e=>(e.planned||0)>0||(e.actual||0)>0);
   mkChart('m-pie','doughnut',{
     labels:expItems.map(e=>e.name),
     datasets:[{data:expItems.map(e=>e.actual||e.planned||0),backgroundColor:COLORS,borderWidth:0,hoverOffset:6}]
-  },{responsive:true,maintainAspectRatio:false,cutout:'60%',plugins:{legend:{position:'bottom',labels:{color:'#8b949e',font:{size:11},padding:10,usePointStyle:true}},tooltip:{callbacks:{label:c=>' '+Utils.currency(c.raw)}}}});
+  },{responsive:true,maintainAspectRatio:false,cutout:'60%',plugins:{legend:{position:'bottom',labels:{color:'#8b949e',font:{size:11},padding:10,usePointStyle:true}},tooltip:{callbacks:{label:c=>' '+Utils.currency(c.raw)}} } });
 
   document.getElementById('m-table').innerHTML =
     '<thead><tr><th>Expense</th><th>Planned</th><th>Actual</th><th>Status</th></tr></thead><tbody>' +
-    m.expenses.map(e=>`<tr><td style="font-weight:600">${e.name}</td><td>${Utils.currency(e.planned||0)}</td><td>${e.actual!=null?Utils.currency(e.actual):'—'}</td><td><span class="badge ${e.status==='paid'?'badge-green':e.status==='skipped'?'badge-gray':'badge-yellow'}">${e.status||'pending'}</span></td></tr>`).join('') + '</tbody>';
+    m.expenses.map(e=>`<tr><td style="font-weight:600">${e.name}</td><td>${Utils.currency(e.planned||0)}</td><td>${e.actual!=null?Utils.currency(e.actual):'—'}</td><td><span class="badge ${e.status==='paid'?'badge-green':e.status==='skipped'?'badge-gray':'badge-yellow'}">${e.status==='paid'?'Paid':e.status==='skipped'?'Skipped':'Pending'}</span></td></tr>`).join('') +
+    '</tbody>';
 }
 
 function shiftMo(d) {
@@ -200,7 +246,14 @@ function jumpMo(mk) { _curMo=mk; closeMoPicker(); renderMonthly(); }
 function renderYearly() {
   document.getElementById('yr-label').textContent = _curYr;
   const yms = Object.values(_months).filter(m=>m.key&&m.key.startsWith(String(_curYr))).sort((a,b)=>a.key>b.key?1:-1);
-  const ti = yms.reduce((s,m)=>s+(m.income||0),0);
+  
+  // FIXED: Calculate yearly totals including extra income
+  const ti = yms.reduce((s,m) => {
+    const main = m.income || 0;
+    const extra = m.extraIncomes.reduce((ex, e) => ex + (e.planned || 0), 0);
+    return s + main + extra;
+  }, 0);
+  
   const te = yms.reduce((s,m)=>s+m.expenses.reduce((a,e)=>a+(e.planned||0),0),0);
   const ns = ti - te;
   const sr = ti ? Math.round((ns/ti)*100) : 0;
@@ -213,7 +266,11 @@ function renderYearly() {
   mkChart('y-ie','bar',{
     labels,
     datasets:[
-      {label:'Income', data:yms.map(m=>m.income||0),backgroundColor:'rgba(63,185,80,0.7)',borderRadius:4},
+      {label:'Income', data:yms.map(m=>{
+        const main = m.income || 0;
+        const extra = m.extraIncomes.reduce((s,e) => s + (e.planned || 0), 0);
+        return main + extra;
+      }),backgroundColor:'rgba(63,185,80,0.7)',borderRadius:4},
       {label:'Expense',data:yms.map(m=>m.expenses.reduce((s,e)=>s+(e.planned||0),0)),backgroundColor:'rgba(248,81,73,0.7)',borderRadius:4}
     ]
   });
@@ -229,7 +286,7 @@ function renderYearly() {
   const te2=Object.entries(tots).filter(([,v])=>v>0).sort((a,b)=>b[1]-a[1]);
   mkChart('y-pie','doughnut',{
     labels:te2.map(([k])=>k),datasets:[{data:te2.map(([,v])=>v),backgroundColor:COLORS,borderWidth:0,hoverOffset:6}]
-  },{responsive:true,maintainAspectRatio:false,cutout:'60%',plugins:{legend:{position:'bottom',labels:{color:'#8b949e',font:{size:11},padding:10,usePointStyle:true}},tooltip:{callbacks:{label:c=>' '+Utils.currency(c.raw)}}}});
+  },{responsive:true,maintainAspectRatio:false,cutout:'60%',plugins:{legend:{position:'bottom',labels:{color:'#8b949e',font:{size:11},padding:10,usePointStyle:true}},tooltip:{callbacks:{label:c=>' '+Utils.currency(c.raw)}} } });
 
   if (_loans.length) {
     const l=_loans[0]; const mi=(l.interestRate||0)/100/12;
@@ -244,14 +301,117 @@ function renderYearly() {
     '<thead><tr><th>Month</th><th>Income</th><th>Expenses</th><th>Balance</th><th>Savings Rate</th></tr></thead><tbody>'+
     yms.map(m=>{
       const exp=m.expenses.reduce((s,e)=>s+(e.planned||0),0);
-      const bal=(m.income||0)-exp;
-      const rate=m.income?Math.round((bal/m.income)*100):0;
+      const incMain = m.income || 0;
+      const incExtra = m.extraIncomes.reduce((s,e) => s + (e.planned || 0), 0);
+      const totalInc = incMain + incExtra;
+      const bal=totalInc - exp;
+      const rate=totalInc?Math.round((bal/totalInc)*100):0;
       const rc=rate>=20?'var(--green)':rate>=0?'var(--yellow)':'var(--red)';
-      return `<tr><td style="font-weight:600">${m.label||m.key}</td><td style="color:var(--green)">${Utils.currency(m.income||0)}</td><td style="color:var(--red)">${Utils.currency(exp)}</td><td style="color:var(--blue);font-weight:600">${Utils.currency(bal)}</td><td style="color:${rc};font-weight:600">${rate}%</td></tr>`;
+      return `<tr><td style="font-weight:600">${m.label||m.key}</td><td style="color:var(--green)">${Utils.currency(totalInc)}</td><td style="color:var(--red)">${Utils.currency(exp)}</td><td style="color:${rate>=0?'var(--green)':'var(--red)'}">${Utils.currency(bal)}</td><td style="color:${rc};font-weight:600">${rate}%</td></tr>`;
     }).join('')+'</tbody>';
 }
 
 function shiftYr(d) { _curYr+=d; renderYearly(); }
+
+// ── FIX #4: Export functionality ──
+function exportCurrentReport() {
+  if (_currentTab === 'monthly') {
+    exportMonthlyReport();
+  } else {
+    exportYearlyReport();
+  }
+}
+
+function exportMonthlyReport() {
+  const m = _months[_curMo];
+  if (!m) {
+    Utils.toast('No data to export', 'error');
+    return;
+  }
+  
+  const rows = [];
+  rows.push({
+    'Month': Utils.monthLabel(_curMo),
+    'Type': 'Summary',
+    'Item': 'Total Planned Income',
+    'Amount': (m.income || 0) + m.extraIncomes.reduce((s,e) => s + (e.planned||0), 0)
+  });
+  rows.push({
+    'Month': Utils.monthLabel(_curMo),
+    'Type': 'Summary',
+    'Item': 'Total Actual Income',
+    'Amount': (m.incomeStatus === 'received' ? Number(m.incomeActual || 0) : 0) + m.extraIncomes.reduce((s,e) => s + (e.status === 'received' ? Number(e.actual || 0) : 0), 0)
+  });
+  rows.push({
+    'Month': Utils.monthLabel(_curMo),
+    'Type': 'Summary',
+    'Item': 'Total Planned Expenses',
+    'Amount': m.expenses.reduce((s,e)=>s+(e.planned||0),0)
+  });
+  rows.push({
+    'Month': Utils.monthLabel(_curMo),
+    'Type': 'Summary',
+    'Item': 'Total Actual Expenses',
+    'Amount': m.expenses.reduce((s,e)=>s+(e.actual||0),0)
+  });
+  
+  rows.push({'Month': '', 'Type': '', 'Item': '', 'Amount': ''});
+  rows.push({'Month': Utils.monthLabel(_curMo), 'Type': 'Main Income', 'Item': 'Salary', 'Amount': m.incomeActual || m.income || 0});
+  
+  m.extraIncomes.forEach(e => {
+    rows.push({
+      'Month': Utils.monthLabel(_curMo),
+      'Type': 'Extra Income',
+      'Item': e.name,
+      'Amount': e.actual || e.planned || 0
+    });
+  });
+  
+  rows.push({'Month': '', 'Type': '', 'Item': '', 'Amount': ''});
+  m.expenses.forEach(e => {
+    rows.push({
+      'Month': Utils.monthLabel(_curMo),
+      'Type': 'Expense',
+      'Item': e.name,
+      'Amount': e.actual || e.planned || 0
+    });
+  });
+  
+  Utils.exportToCSV(`report-${_curMo}`, rows);
+}
+
+function exportYearlyReport() {
+  const yms = Object.values(_months).filter(m=>m.key&&m.key.startsWith(String(_curYr))).sort((a,b)=>a.key>b.key?1:-1);
+  const rows = [];
+  
+  rows.push({
+    'Year': _curYr,
+    'Type': 'Yearly Summary',
+    'Item': 'Total Income',
+    'Amount': yms.reduce((s,m) => s + (m.income || 0) + m.extraIncomes.reduce((ex, e) => ex + (e.planned || 0), 0), 0)
+  });
+  rows.push({
+    'Year': _curYr,
+    'Type': 'Yearly Summary',
+    'Item': 'Total Expenses',
+    'Amount': yms.reduce((s,m)=>s+m.expenses.reduce((a,e)=>a+(e.planned||0),0),0)
+  });
+  
+  rows.push({'Year': '', 'Type': '', 'Item': '', 'Amount': ''});
+  
+  yms.forEach(m => {
+    const inc = (m.income || 0) + m.extraIncomes.reduce((s,e) => s + (e.planned || 0), 0);
+    const exp = m.expenses.reduce((s,e)=>s+(e.planned||0),0);
+    rows.push({
+      'Year': _curYr,
+      'Type': 'Monthly',
+      'Item': m.label || m.key,
+      'Amount': inc - exp
+    });
+  });
+  
+  Utils.exportToCSV(`report-yearly-${_curYr}`, rows);
+}
 </script>
 </body>
 </html>
