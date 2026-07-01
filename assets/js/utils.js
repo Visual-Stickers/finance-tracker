@@ -44,5 +44,54 @@ const Utils = (() => {
     if (el) el.classList.remove('open');
   }
 
-  return { currency, shortDate, monthKey, monthLabel, toast, openModal, closeModal };
+  // ── New Export Utilities ──
+  function exportToCSV(filename, data) {
+    if (!data || data.length === 0) {
+      toast('No data to export', 'error');
+      return;
+    }
+    const headers = Object.keys(data[0]);
+    const csv = [headers.join(','), ...data.map(row => 
+      headers.map(h => {
+        const val = row[h];
+        if (val == null) return '';
+        if (typeof val === 'string' && (val.includes(',') || val.includes('"'))) {
+          return `"${val.replace(/"/g, '""')}"`;
+        }
+        return val;
+      }).join(',')
+    )].join('\n');
+    
+    const blob = new Blob([csv], { type: 'text/csv' });
+    downloadFile(blob, `${filename}.csv`);
+    toast('Report exported as CSV');
+  }
+
+  function downloadFile(blob, filename) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  // ── Data Sync Helper ──
+  function notifyDataChanged() {
+    // Broadcast event to all tabs
+    if (typeof BroadcastChannel !== 'undefined') {
+      const bc = new BroadcastChannel('finance_tracker_data');
+      bc.postMessage({ type: 'data_changed', timestamp: Date.now() });
+      bc.close();
+    }
+    // Store timestamp for same-tab detection
+    localStorage.setItem('_finance_tracker_sync', Date.now().toString());
+  }
+
+  return { 
+    currency, shortDate, monthKey, monthLabel, toast, openModal, closeModal,
+    exportToCSV, downloadFile, notifyDataChanged
+  };
 })();
