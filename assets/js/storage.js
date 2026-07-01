@@ -1,7 +1,7 @@
 // storage.js - All Supabase DB operations
 const DB = {
 
-  // ── Seed ──────────────────────────────────────────────────────────────
+  // ── Seed ────────────────────────────────────────────────────────────
   async seed(userId) {
     const sb = getSB();
     const { data } = await sb.from('months').select('id').eq('user_id', userId).limit(1);
@@ -35,7 +35,7 @@ const DB = {
     }
   },
 
-  // ── Months ────────────────────────────────────────────────────────────
+  // ── Months ───────────────────────────────────────────────────────────
   async getMonths(userId) {
     const sb = getSB();
     const [{ data: mRows, error: e1 }, { data: eRows, error: e2 }] = await Promise.all([
@@ -93,12 +93,24 @@ const DB = {
     if (fields.incomeNote   !== undefined) patch.income_note   = fields.incomeNote || '';
     const { error } = await sb.from('months').update(patch).eq('user_id', userId).eq('month_key', monthKey);
     if (error) { console.error('saveMonthIncome error:', error); return false; }
+    // Notify other tabs/pages of data change
+    if (!error && typeof Utils !== 'undefined') Utils.notifyDataChanged();
     return true;
   },
 
   async addExpense(userId, monthKey, { name, planned, note, isIncome }) {
     const sb = getSB();
     await this.upsertMonth(userId, monthKey);
+    
+    // Validate income data
+    if (isIncome) {
+      const plannedNum = Number(planned) || 0;
+      if (plannedNum <= 0) {
+        console.error('Income amount must be greater than 0');
+        return null;
+      }
+    }
+    
     const { data: existing } = await sb.from('month_expenses')
       .select('sort_order').eq('user_id', userId).eq('month_key', monthKey)
       .eq('is_income', !!isIncome).order('sort_order', { ascending: false }).limit(1);
@@ -110,13 +122,23 @@ const DB = {
       note: note || '', sort_order: nextOrder, is_income: !!isIncome
     }).select().single();
     if (error) { console.error('addExpense error:', error); return null; }
+    // Notify other tabs/pages of data change
+    if (typeof Utils !== 'undefined') Utils.notifyDataChanged();
     return data;
   },
 
   async updateExpense(userId, expId, fields) {
     const sb = getSB();
     const patch = {};
-    if (fields.actual  !== undefined) patch.actual  = fields.actual !== null ? Number(fields.actual) : null;
+    if (fields.actual  !== undefined) {
+      const actualNum = Number(fields.actual);
+      // Validation: actual cannot be negative
+      if (!isNaN(actualNum) && actualNum < 0) {
+        console.error('Actual amount cannot be negative');
+        return false;
+      }
+      patch.actual = fields.actual !== null ? actualNum : null;
+    }
     if (fields.status  !== undefined) patch.status  = fields.status;
     if (fields.date    !== undefined) patch.date    = fields.date || null;
     if (fields.note    !== undefined) patch.note    = fields.note || '';
@@ -124,12 +146,16 @@ const DB = {
     if (fields.name    !== undefined) patch.name    = fields.name;
     const { error } = await sb.from('month_expenses').update(patch).eq('id', expId).eq('user_id', userId);
     if (error) { console.error('updateExpense error:', error); return false; }
+    // Notify other tabs/pages of data change
+    if (typeof Utils !== 'undefined') Utils.notifyDataChanged();
     return true;
   },
 
   async deleteExpense(userId, expId) {
     const { error } = await getSB().from('month_expenses').delete().eq('id', expId).eq('user_id', userId);
     if (error) console.error('deleteExpense error:', error);
+    // Notify other tabs/pages of data change
+    if (!error && typeof Utils !== 'undefined') Utils.notifyDataChanged();
     return !error;
   },
 
@@ -142,10 +168,12 @@ const DB = {
       income: Number(income) || 0, income_status: 'expected', balance: 0
     });
     if (error && error.code !== '23505') { console.error('createMonth error:', error); return false; }
+    // Notify other tabs/pages of data change
+    if (!error && typeof Utils !== 'undefined') Utils.notifyDataChanged();
     return true;
   },
 
-  // ── Loans ─────────────────────────────────────────────────────────────
+  // ── Loans ───────────────────────────────────────────────────────────
   async getLoans(userId) {
     const { data, error } = await getSB().from('loans').select('*').eq('user_id', userId);
     if (error) { console.error('getLoans error:', error); return []; }
@@ -189,12 +217,16 @@ const DB = {
       if (error) { console.error('saveLoan insert error:', error); return false; }
       loan._id = data.id;
     }
+    // Notify other tabs/pages of data change
+    if (typeof Utils !== 'undefined') Utils.notifyDataChanged();
     return true;
   },
 
   async deleteLoan(userId, loanId) {
     const { error } = await getSB().from('loans').delete().eq('id', loanId).eq('user_id', userId);
     if (error) console.error('deleteLoan error:', error);
+    // Notify other tabs/pages of data change
+    if (!error && typeof Utils !== 'undefined') Utils.notifyDataChanged();
     return !error;
   },
 
@@ -227,12 +259,16 @@ const DB = {
       const { error } = await sb.from('credit_cards').insert(payload);
       if (error) { console.error('saveCard insert error:', error); return false; }
     }
+    // Notify other tabs/pages of data change
+    if (typeof Utils !== 'undefined') Utils.notifyDataChanged();
     return true;
   },
 
   async deleteCard(userId, cardId) {
     const { error } = await getSB().from('credit_cards').delete().eq('id', cardId).eq('user_id', userId);
     if (error) console.error('deleteCard error:', error);
+    // Notify other tabs/pages of data change
+    if (!error && typeof Utils !== 'undefined') Utils.notifyDataChanged();
     return !error;
   },
 
