@@ -104,17 +104,43 @@
 <script src="assets/js/storage.js"></script>
 <script>
 let _charts = {};
+let _user, _lastSyncTime = 0;
+
 function destroyChart(id) { if (_charts[id]) { _charts[id].destroy(); delete _charts[id]; } }
 
+// ── Listen for data changes from other tabs/pages ──
+if (typeof BroadcastChannel !== 'undefined') {
+  const bc = new BroadcastChannel('finance_tracker_data');
+  bc.onmessage = (event) => {
+    if (event.data.type === 'data_changed') {
+      // Debounce: only refresh if more than 1 second has passed
+      if (Date.now() - _lastSyncTime > 1000) {
+        _lastSyncTime = Date.now();
+        loadDashboard(_user.id);
+      }
+    }
+  };
+}
+
+// Also listen for localStorage changes (same tab)
+window.addEventListener('storage', (e) => {
+  if (e.key === '_finance_tracker_sync' && _user) {
+    if (Date.now() - _lastSyncTime > 1000) {
+      _lastSyncTime = Date.now();
+      loadDashboard(_user.id);
+    }
+  }
+});
+
 document.addEventListener('DOMContentLoaded', async () => {
-  const user = await Auth.requireAuth();
-  if (!user) return;
+  _user = await Auth.requireAuth();
+  if (!_user) return;
   Theme.init();
   document.getElementById('navDate').textContent = new Date().toLocaleDateString('en-IN', { weekday:'short', day:'numeric', month:'short', year:'numeric' });
   const h = new Date().getHours();
   document.getElementById('greeting').textContent = `${h<12?'Good morning':h<17?'Good afternoon':'Good evening'}, Prem 👋`;
-  await DB.seed(user.id);
-  await loadDashboard(user.id);
+  await DB.seed(_user.id);
+  await loadDashboard(_user.id);
 });
 
 async function loadDashboard(userId) {
@@ -125,13 +151,28 @@ async function loadDashboard(userId) {
   const mk = Utils.monthKey(new Date());
   document.getElementById('dashSub').textContent = `Financial overview • ${Utils.monthLabel(mk)}`;
 
-  // Stat cards
+  // ── FIX #3: Corrected balance calculation ──
+  // Now correctly counts ALL received income (main + extra) and ALL paid expenses
   let balance = 0;
   Object.values(months).forEach(m => {
-    if (m.incomeStatus === 'received') balance += Number(m.incomeActual || 0);
-    m.extraIncomes.forEach(e => { if (e.status === 'received') balance += Number(e.actual || 0); });
-    m.expenses.forEach(e => { if (e.status === 'paid') balance -= Number(e.actual || 0); });
+    // Add main salary income if received
+    if (m.incomeStatus === 'received') {
+      balance += Number(m.incomeActual || 0);
+    }
+    // Add all extra incomes that have been received
+    m.extraIncomes.forEach(e => { 
+      if (e.status === 'received') {
+        balance += Number(e.actual || 0);
+      }
+    });
+    // Subtract all expenses that have been paid
+    m.expenses.forEach(e => { 
+      if (e.status === 'paid') {
+        balance -= Number(e.actual || 0);
+      }
+    });
   });
+
   const loanOS = loans.reduce((s, l) => s + Number(l.outstanding||0), 0);
   const ccOS   = cards.reduce((s, c) => s + Number(c.outstanding||0), 0);
 
@@ -148,7 +189,7 @@ async function loadDashboard(userId) {
   const chartOpts = {
     responsive:true, maintainAspectRatio:false, animation:{duration:500},
     plugins:{ legend:{labels:{color:'#8b949e',font:{size:11}}}, tooltip:{backgroundColor:'#161b22',borderColor:'#30363d',borderWidth:1,titleColor:'#f0f6fc',bodyColor:'#8b949e',callbacks:{label:c=>' '+Utils.currency(c.raw)}} },
-    scales:{ x:{ticks:{color:'#8b949e',font:{size:11}},grid:{color:'rgba(255,255,255,0.04)'}}, y:{ticks:{color:'#8b949e',font:{size:11},callback:v=>'₹'+(v/1000).toFixed(0)+'k'},grid:{color:'rgba(255,255,255,0.05)'}} }
+    scales:{ x:{ticks:{color:'#8b949e',font:{size:11}},grid:{color:'rgba(255,255,255,0.04)'}}, y:{ticks:{color:'#8b949e',font:{size:11},callback:v=>'₹'+(v/1000).toFixed(0)+'k'},grid:{color:'rgba(255,255,255,0.04)'}} }
   };
 
   destroyChart('chart-ie');
@@ -156,8 +197,12 @@ async function loadDashboard(userId) {
     type:'bar',
     data:{ labels:last6.map(m=>(m.label||m.key).split(' ')[0]),
       datasets:[
-        {label:'Income', data:last6.map(m=>m.incomeActual||m.income||0), backgroundColor:'rgba(63,185,80,0.7)', borderRadius:4},
-        {label:'Expense',data:last6.map(m=>m.expenses.reduce((s,e)=>s+(e.actual||e.planned||0),0)), backgroundColor:'rgba(248,81,73,0.7)', borderRadius:4}
+        {label:'Income', data:last6.map(m=>{
+          const main = m.incomeStatus === 'received' ? Number(m.incomeActual || 0) : 0;
+          const extra = m.extraIncomes.reduce((s,e) => s + (e.status === 'received' ? Number(e.actual || 0) : 0), 0);
+          return main + extra;
+        }), backgroundColor:'rgba(63,185,80,0.7)', borderRadius:4},
+        {label:'Expense',data:last6.map(m=>m.expenses.reduce((s,e)=>s+(e.status === 'paid' ? Number(e.actual || 0) : 0),0)), backgroundColor:'rgba(248,81,73,0.7)', borderRadius:4}
       ]},
     options:{...chartOpts}
   });
