@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Dashboard – Finance Command Center</title>
+<link rel="stylesheet" href="assets/css/app.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+<script>(function(){var t=localStorage.getItem('fcc-theme')||'dark';if(t==='light')document.body.classList.add('light');})();</script>
+<nav class="nav">
+  <a href="index.html" class="nav-brand">
+    <div class="nav-brand-icon"><i class="fa fa-chart-line"></i></div>
+    <span>Finance Command Center</span>
+  </a>
+  <ul class="nav-links">
+    <li><a href="index.html" class="active"><i class="fa fa-gauge-high"></i><span>Dashboard</span></a></li>
+    <li><a href="income-expense.html"><i class="fa fa-arrows-left-right"></i><span>Income &amp; Expense</span></a></li>
+    <li><a href="loans.html"><i class="fa fa-landmark"></i><span>Loans</span></a></li>
+    <li><a href="credit-cards.html"><i class="fa fa-credit-card"></i><span>Credit Cards</span></a></li>
+    <li><a href="reports.html"><i class="fa fa-chart-pie"></i><span>Reports</span></a></li>
+    <li><a href="settings.html"><i class="fa fa-gear"></i><span>Settings</span></a></li>
+  </ul>
+  <div class="nav-right">
+    <span class="nav-date" id="navDate"></span>
+    <button class="btn-theme" id="themeToggle" onclick="Theme.toggle()"></button>
+    <button class="btn-signout" onclick="Auth.signOut()"><i class="fa fa-right-from-bracket"></i> Sign Out</button>
+  </div>
+</nav>
+
+<div class="page">
+  <!-- Header -->
+  <div style="margin-bottom:22px">
+    <h1 id="greeting" style="font-size:22px;font-weight:800;letter-spacing:-0.02em">Good morning 👋</h1>
+    <p id="dashSub" style="color:var(--text2);font-size:13px;margin-top:3px">Loading your financial overview...</p>
+  </div>
+
+  <!-- Stat Cards -->
+  <div class="grid-4" style="margin-bottom:20px">
+    <div class="stat-card" style="--accent:var(--blue);--icon-bg:rgba(88,166,255,0.1)">
+      <div class="stat-label">Current Balance</div>
+      <div class="stat-value" id="sc-balance">—</div>
+      <div class="stat-sub">Based on received income &amp; paid expenses</div>
+      <div class="stat-icon"><i class="fa fa-wallet"></i></div>
+    </div>
+    <div class="stat-card" style="--accent:var(--red);--icon-bg:rgba(248,81,73,0.1)">
+      <div class="stat-label">Loan Outstanding</div>
+      <div class="stat-value" id="sc-loan">—</div>
+      <div class="stat-sub" id="sc-loan-name">—</div>
+      <div class="stat-icon"><i class="fa fa-landmark"></i></div>
+    </div>
+    <div class="stat-card" style="--accent:var(--orange);--icon-bg:rgba(219,109,40,0.1)">
+      <div class="stat-label">CC Outstanding</div>
+      <div class="stat-value" id="sc-cc">₹0</div>
+      <div class="stat-sub" id="sc-cc-sub">Total across all cards</div>
+      <div class="stat-icon"><i class="fa fa-credit-card"></i></div>
+    </div>
+    <div class="stat-card" style="--accent:var(--green);--icon-bg:rgba(63,185,80,0.1)">
+      <div class="stat-label">Net Worth</div>
+      <div class="stat-value" id="sc-networth">—</div>
+      <div class="stat-sub">Balance minus all liabilities</div>
+      <div class="stat-icon"><i class="fa fa-arrow-trend-up"></i></div>
+    </div>
+  </div>
+
+  <!-- Financial Health Score -->
+  <div class="health-card" id="healthCard" style="display:none">
+    <div class="health-ring">
+      <svg width="72" height="72" viewBox="0 0 72 72">
+        <circle class="health-ring-bg" cx="36" cy="36" r="30"/>
+        <circle class="health-ring-fill" id="healthRingFill" cx="36" cy="36" r="30"
+          stroke-dasharray="188.5" stroke-dashoffset="188.5"/>
+      </svg>
+      <div class="health-score-text">
+        <span class="health-score-num" id="healthNum">—</span>
+        <span class="health-score-sub">/100</span>
+      </div>
+    </div>
+    <div class="health-details">
+      <div class="health-title" id="healthTitle">Financial Health Score</div>
+      <div class="health-desc" id="healthDesc">Calculating your score...</div>
+      <div class="health-metrics" id="healthMetrics"></div>
+    </div>
+  </div>
+
+  <!-- This Month at a Glance -->
+  <div class="card" id="monthGlanceCard" style="margin-bottom:16px;display:none">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+      <div style="font-size:12px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.07em" id="monthGlanceTitle">This Month</div>
+      <a href="income-expense.html" style="font-size:12px;color:var(--blue);font-weight:600">View details →</a>
+    </div>
+    <div id="monthGlance"></div>
+    <div class="savings-bar" style="margin-top:14px;margin-bottom:0" id="savingsBarWrap">
+      <span class="savings-bar-label">Savings Rate</span>
+      <div class="savings-bar-track"><div class="savings-bar-fill" id="savingsBarFill"></div></div>
+      <span class="savings-bar-pct" id="savingsBarPct">0%</span>
+      <span class="savings-bar-msg" id="savingsBarMsg"></span>
+    </div>
+  </div>
+
+  <!-- Charts Row 1 -->
+  <div class="grid-2" style="margin-bottom:16px">
+    <div class="chart-card">
+      <div class="chart-title"><i class="fa fa-chart-bar"></i> Income vs Expense — Last 6 Months</div>
+      <div style="height:220px;position:relative"><canvas id="chart-ie"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title"><i class="fa fa-chart-line"></i> Planned Balance Trend</div>
+      <div style="height:220px;position:relative"><canvas id="chart-balance"></canvas></div>
+    </div>
+  </div>
+
+  <!-- Charts Row 2 -->
+  <div class="grid-2" style="margin-bottom:16px">
+    <div class="chart-card">
+      <div class="chart-title"><i class="fa fa-chart-pie"></i> This Month's Expense Breakdown</div>
+      <div style="height:220px;position:relative"><canvas id="chart-exp"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title"><i class="fa fa-list-check"></i> Pending Tasks</div>
+      <div id="taskList" style="max-height:220px;overflow-y:auto"></div>
+    </div>
+  </div>
+
+  <!-- Loan Progress -->
+  <div class="chart-card">
+    <div class="chart-title"><i class="fa fa-landmark"></i> Loan Repayment Progress</div>
+    <div id="loanProgress"></div>
+  </div>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script src="assets/js/supabase-client.js"></script>
+<script src="assets/js/utils.js"></script>
+<script src="assets/js/data.js"></script>
+<script src="assets/js/theme.js"></script>
+<script src="assets/js/storage.js"></script>
+<script>
+let _charts = {}, _user, _lastSync = 0;
+
+function dc(id) { if (_charts[id]) { try{_charts[id].destroy();}catch(e){} delete _charts[id]; } }
+
+if (typeof BroadcastChannel !== 'undefined') {
+  const bc = new BroadcastChannel('finance_tracker_data');
+  bc.onmessage = () => { if (_user && Date.now()-_lastSync>1000) { _lastSync=Date.now(); loadDashboard(_user.id); } };
+}
+window.addEventListener('storage', e => {
+  if (e.key==='_finance_tracker_sync' && _user && Date.now()-_lastSync>1000) { _lastSync=Date.now(); loadDashboard(_user.id); }
+});
+
+document.addEventListener('DOMContentLoaded', async () => {
+  _user = await Auth.requireAuth(); if (!_user) return;
+  Theme.init();
+  document.getElementById('navDate').textContent = new Date().toLocaleDateString('en-IN',{weekday:'short',day:'numeric',month:'short',year:'numeric'});
+  const h = new Date().getHours();
+  const name = Utils.nameFromEmail(_user.email);
+  document.getElementById('greeting').textContent = `${h<12?'Good morning':h<17?'Good afternoon':'Good evening'}, ${name} 👋`;
+  await DB.seed(_user.id);
+  await loadDashboard(_user.id);
+});
+
+async function loadDashboard(userId) {
+  const [months, loans, cards] = await Promise.all([DB.getMonths(userId), DB.getLoans(userId), DB.getCards(userId)]);
+  const mk = Utils.monthKey(new Date());
+  document.getElementById('dashSub').textContent = `Financial overview • ${Utils.monthLabel(mk)}`;
+
+  // Balance calculation — only actual received/paid
+  let balance = 0;
+  Object.values(months).forEach(m => {
+    if (m.incomeStatus==='received') balance += Number(m.incomeActual||0);
+    m.extraIncomes.forEach(e => { if (e.status==='received') balance += Number(e.actual||0); });
+    m.expenses.forEach(e => { if (e.status==='paid') balance -= Number(e.actual||0); });
+  });
+
+  const loanOS = loans.reduce((s,l) => s+Number(l.outstanding||0), 0);
+  const ccOS   = cards.reduce((s,c) => s+Number(c.outstanding||0), 0);
+
+  document.getElementById('sc-balance').textContent  = Utils.currency(balance);
+  document.getElementById('sc-loan').textContent     = Utils.currency(loanOS);
+  document.getElementById('sc-cc').textContent       = Utils.currency(ccOS);
+  document.getElementById('sc-networth').textContent = Utils.currency(balance - loanOS - ccOS);
+  if (loans.length) document.getElementById('sc-loan-name').textContent = loans[0].name;
+
+  // Month at a glance
+  const cm = months[mk];
+  if (cm) {
+    renderMonthGlance(cm);
+    renderHealthScore(cm, loans, cards);
+  }
+
+  // Charts
+  const sorted = Object.values(months).sort((a,b)=>a.key>b.key?1:-1);
+  const last6  = sorted.slice(-6);
+  const copts = {
+    responsive:true, maintainAspectRatio:false, animation:{duration:600},
+    plugins:{ legend:{labels:{color:'var(--text2)',font:{size:11}}}, tooltip:{backgroundColor:'var(--bg2)',borderColor:'var(--border)',borderWidth:1,titleColor:'var(--text1)',bodyColor:'var(--text2)',callbacks:{label:c=>' '+Utils.currency(c.raw)}} },
+    scales:{ x:{ticks:{color:'var(--text3)',font:{size:11}},grid:{color:'rgba(128,128,128,0.06)'}}, y:{ticks:{color:'var(--text3)',font:{size:11},callback:v=>'₹'+(v>=1000?(v/1000).toFixed(0)+'k':v)},grid:{color:'rgba(128,128,128,0.06)'}} }
+  };
+
+  dc('chart-ie');
+  _charts['chart-ie'] = new Chart(document.getElementById('chart-ie'),{
+    type:'bar',
+    data:{ labels:last6.map(m=>(m.label||m.key).split(' ')[0]),
+      datasets:[
+        {label:'Income', data:last6.map(m=>(m.incomeStatus==='received'?Number(m.incomeActual||0):0)+m.extraIncomes.reduce((s,e)=>s+(e.status==='received'?Number(e.actual||0):0),0)), backgroundColor:'rgba(63,185,80,0.75)', borderRadius:5, borderSkipped:false},
+        {label:'Expense',data:last6.map(m=>m.expenses.reduce((s,e)=>s+(e.status==='paid'?Number(e.actual||0):0),0)), backgroundColor:'rgba(248,81,73,0.75)', borderRadius:5, borderSkipped:false}
+      ]},
+    options:{...copts}
+  });
+
+  dc('chart-balance');
+  _charts['chart-balance'] = new Chart(document.getElementById('chart-balance'),{
+    type:'line',
+    data:{ labels:sorted.map(m=>(m.label||m.key).split(' ')[0]),
+      datasets:[{label:'Planned Balance',data:sorted.map(m=>m.balance||0),borderColor:'#58a6ff',backgroundColor:'rgba(88,166,255,0.07)',fill:true,tension:0.4,pointRadius:3,pointHoverRadius:5}]},
+    options:{...copts,plugins:{...copts.plugins,legend:{display:false}}}
+  });
+
+  if (cm) {
+    const expItems = cm.expenses.filter(e=>(e.planned||0)>0||(e.actual||0)>0);
+    if (expItems.length) {
+      dc('chart-exp');
+      _charts['chart-exp'] = new Chart(document.getElementById('chart-exp'),{
+        type:'doughnut',
+        data:{ labels:expItems.map(e=>e.name), datasets:[{data:expItems.map(e=>e.actual||e.planned||0), backgroundColor:['#58a6ff','#f85149','#3fb950','#d29922','#bc8cff','#db6d28','#39d5d5','#ec4899'], borderWidth:2, borderColor:'var(--bg2)', hoverOffset:8}] },
+        options:{ responsive:true, maintainAspectRatio:false, cutout:'62%',
+          plugins:{ legend:{position:'bottom',labels:{color:'var(--text2)',font:{size:11},padding:10,usePointStyle:true,boxWidth:8}}, tooltip:{callbacks:{label:c=>' '+Utils.currency(c.raw)}} } }
+      });
+    } else {
+      document.getElementById('chart-exp').parentElement.innerHTML = '<div class="empty" style="padding:60px 0"><i class="fa fa-chart-pie"></i><p>No expense data yet</p></div>';
+    }
+  }
+
+  // Tasks
+  const tasks = [];
+  if (cm) {
+    if (cm.incomeStatus!=='received') tasks.push({color:'var(--blue)', icon:'fa-clock', text:'Salary not yet marked received', meta:Utils.currency(cm.income)+' expected'});
+    cm.expenses.filter(e=>e.status==='pending'&&(e.planned||0)>0).forEach(e=>tasks.push({color:'var(--red)', icon:'fa-triangle-exclamation', text:`${e.name} payment pending`, meta:Utils.currency(e.planned)+' planned'}));
+  }
+  document.getElementById('taskList').innerHTML = tasks.length ? tasks.map(t=>`
+    <div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border)">
+      <div style="width:30px;height:30px;border-radius:8px;background:rgba(128,128,128,0.1);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+        <i class="fa ${t.icon}" style="font-size:12px;color:${t.color}"></i>
+      </div>
+      <div style="flex:1;font-size:13px;color:var(--text1)">${t.text}</div>
+      <div style="font-size:12px;color:var(--text2);font-weight:600">${t.meta}</div>
+    </div>`).join('') :
+    '<div class="empty" style="padding:40px 0"><i class="fa fa-check-circle" style="color:var(--green);opacity:1"></i><p>All tasks complete!</p></div>';
+
+  // Loan progress
+  document.getElementById('loanProgress').innerHTML = loans.length ? loans.map(l=>{
+    const pct = l.principal ? Math.min(100,Math.round(((l.principal-l.outstanding)/l.principal)*100)) : 0;
+    const totalInterest = l.emi * l.tenure - l.principal;
+    const savedInterest = totalInterest * (pct/100);
+    return `
+    <div style="padding:16px 0;border-bottom:1px solid var(--border)">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px">
+        <div>
+          <div style="font-weight:700;font-size:14px">${l.name}</div>
+          <div style="font-size:12px;color:var(--text2);margin-top:3px">${l.emisPaid}/${l.tenure} EMIs · Next: ${Utils.shortDate(l.emiStartDate)}</div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-weight:800;color:var(--red);font-size:16px">${Utils.currency(l.outstanding)}</div>
+          <div style="font-size:11px;color:var(--text3)">outstanding</div>
+        </div>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text2);margin-bottom:6px">
+        <span style="color:var(--green);font-weight:600">${pct}% paid off</span>
+        <span>${l.emisRemaining} EMIs remaining · ${Utils.currency(l.emi)}/month</span>
+      </div>
+      <div class="progress-bar" style="height:8px">
+        <div class="progress-fill" style="width:${pct}%;background:linear-gradient(90deg,#3fb950,#58a6ff)"></div>
+      </div>
+    </div>`;
+  }).join('') : '<div class="empty"><p>No loans added yet. <a href="loans.html" style="color:var(--blue)">Add a loan →</a></p></div>';
+}
+
+function renderMonthGlance(m) {
+  const pe = m.expenses.reduce((s,e)=>s+(e.planned||0),0);
+  const ae = m.expenses.reduce((s,e)=>s+(e.status==='paid'?Number(e.actual||0):0),0);
+  const pi = (m.income||0) + m.extraIncomes.reduce((s,e)=>s+(e.planned||0),0);
+  const ai = (m.incomeStatus==='received'?Number(m.incomeActual||0):0) + m.extraIncomes.reduce((s,e)=>s+(e.status==='received'?Number(e.actual||0):0),0);
+  const savingsRate = pi > 0 ? Math.round(((pi-pe)/pi)*100) : 0;
+  const spentPct = pe > 0 ? Math.min(100, Math.round((ae/pe)*100)) : 0;
+
+  document.getElementById('monthGlanceTitle').textContent = `${Utils.monthLabel(Utils.monthKey(new Date()))} — At a Glance`;
+  document.getElementById('monthGlanceCard').style.display = '';
+
+  document.getElementById('monthGlance').innerHTML = `
+    <div class="grid-4" style="gap:12px">
+      <div style="text-align:center;padding:12px;background:var(--bg3);border-radius:var(--radius-s)">
+        <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px;font-weight:700">Planned Income</div>
+        <div style="font-size:18px;font-weight:800;color:var(--text1)">${Utils.currency(pi)}</div>
+      </div>
+      <div style="text-align:center;padding:12px;background:var(--bg3);border-radius:var(--radius-s)">
+        <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px;font-weight:700">Received</div>
+        <div style="font-size:18px;font-weight:800;color:var(--green)">${Utils.currency(ai)}</div>
+      </div>
+      <div style="text-align:center;padding:12px;background:var(--bg3);border-radius:var(--radius-s)">
+        <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px;font-weight:700">Budget</div>
+        <div style="font-size:18px;font-weight:800;color:var(--text1)">${Utils.currency(pe)}</div>
+      </div>
+      <div style="text-align:center;padding:12px;background:var(--bg3);border-radius:var(--radius-s)">
+        <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px;font-weight:700">Spent</div>
+        <div style="font-size:18px;font-weight:800;color:${ae>pe?'var(--red)':'var(--text1)'}">${Utils.currency(ae)} <span style="font-size:12px;font-weight:600;color:var(--text3)">(${spentPct}%)</span></div>
+      </div>
+    </div>`;
+
+  const srColor = savingsRate>=30?'var(--green)':savingsRate>=20?'var(--blue)':savingsRate>=0?'var(--yellow)':'var(--red)';
+  const srMsg   = savingsRate>=30?'🎉 Excellent saving!':savingsRate>=20?'👍 Good savings':savingsRate>=10?'⚠️ Low savings':savingsRate>=0?'⚠️ Very low savings':'🚨 Overspending!';
+  document.getElementById('savingsBarFill').style.width  = Math.max(0,savingsRate)+'%';
+  document.getElementById('savingsBarFill').style.background = srColor;
+  document.getElementById('savingsBarPct').textContent   = savingsRate+'%';
+  document.getElementById('savingsBarPct').style.color   = srColor;
+  document.getElementById('savingsBarMsg').textContent   = srMsg;
+}
+
+function renderHealthScore(m, loans, cards) {
+  const pe = m.expenses.reduce((s,e)=>s+(e.planned||0),0);
+  const pi = (m.income||0) + m.extraIncomes.reduce((s,e)=>s+(e.planned||0),0);
+  const totalEmi  = loans.reduce((s,l)=>s+Number(l.emi||0),0);
+  const totalCC   = cards.reduce((s,c)=>s+Number(c.outstanding||0),0);
+  const totalLimit= cards.reduce((s,c)=>s+Number(c.limit||0),0);
+
+  const savingsRate   = pi>0 ? Math.round(((pi-pe)/pi)*100) : 0;
+  const emiToIncome   = pi>0 ? Math.round((totalEmi/pi)*100) : 0;
+  const ccUtil        = totalLimit>0 ? Math.round((totalCC/totalLimit)*100) : 0;
+
+  const score = Utils.healthScore(Math.max(0,savingsRate), emiToIncome, ccUtil);
+  const { label, color } = Utils.scoreLabel(score);
+
+  const r = 30, circ = 2*Math.PI*r;
+  const offset = circ - (score/100)*circ;
+
+  document.getElementById('healthRingFill').style.stroke = color;
+  document.getElementById('healthRingFill').style.strokeDashoffset = offset;
+  document.getElementById('healthNum').textContent = score;
+  document.getElementById('healthNum').style.color = color;
+  document.getElementById('healthTitle').textContent = `Financial Health: ${label}`;
+
+  const tips = [];
+  if (savingsRate < 20) tips.push('Aim to save at least 20% of income each month');
+  if (emiToIncome > 40) tips.push('EMI payments exceed 40% of income — consider prepayment');
+  if (ccUtil > 30) tips.push('Credit utilization above 30% — pay down card balance');
+  if (savingsRate >= 20 && emiToIncome <= 40 && ccUtil <= 30) tips.push('Your finances look healthy — keep it up!');
+
+  document.getElementById('healthDesc').textContent = tips[0] || 'Great financial health!';
+  document.getElementById('healthMetrics').innerHTML = [
+    `<span class="health-metric">Savings Rate: <strong style="color:${savingsRate>=20?'var(--green)':'var(--red)'}">${savingsRate}%</strong></span>`,
+    `<span class="health-metric">EMI/Income: <strong style="color:${emiToIncome<=40?'var(--green)':'var(--red)'}">${emiToIncome}%</strong></span>`,
+    `<span class="health-metric">CC Utilization: <strong style="color:${ccUtil<=30?'var(--green)':'var(--yellow)'}">${ccUtil}%</strong></span>`,
+  ].join('');
+  document.getElementById('healthCard').style.display = '';
+}
+</script>
+</body>
+</html>
