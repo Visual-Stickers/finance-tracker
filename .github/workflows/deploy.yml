@@ -24,7 +24,7 @@ jobs:
         with:
           node-version: 20
 
-      - run: npm ci
+      - run: npm install
 
       # Set VITE_BASE_PATH to "/<repo-name>/" if deploying to
       # https://<user>.github.io/<repo-name>/. Leave unset (defaults to "/")
