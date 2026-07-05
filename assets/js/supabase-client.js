@@ -1,5 +1,5 @@
 // supabase-client.js
-const SUPABASE_URL = 'https://prfksddisksdaoprxjki.supabase.co';
+const SUPABASE_URL = 'https://prfksddisksdaoprxjki.supabase.co/rest/v1/';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InByZmtzZGRpc2tzZGFvcHJ4amtpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI2NjcyNDQsImV4cCI6MjA5ODI0MzI0NH0.Ku3eQX4OpCIlCBlTTezC23W29sI-V9k8vAbO4B4rnZc';
 
 let _sb = null;
