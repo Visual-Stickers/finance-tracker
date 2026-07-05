@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Settings – Finance Command Center</title>
+<link rel="stylesheet" href="assets/css/app.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+<script>(function(){var t=localStorage.getItem('fcc-theme')||'dark';if(t==='light')document.body.classList.add('light');})();</script>
+<nav class="nav">
+  <a href="index.html" class="nav-brand"><div class="nav-brand-icon"><i class="fa fa-chart-line"></i></div><span>Finance Command Center</span></a>
+  <ul class="nav-links">
+    <li><a href="index.html"><i class="fa fa-gauge-high"></i><span>Dashboard</span></a></li>
+    <li><a href="income-expense.html"><i class="fa fa-arrows-left-right"></i><span>Income &amp; Expense</span></a></li>
+    <li><a href="loans.html"><i class="fa fa-landmark"></i><span>Loans</span></a></li>
+    <li><a href="credit-cards.html"><i class="fa fa-credit-card"></i><span>Credit Cards</span></a></li>
+    <li><a href="reports.html"><i class="fa fa-chart-pie"></i><span>Reports</span></a></li>
+    <li><a href="settings.html" class="active"><i class="fa fa-gear"></i><span>Settings</span></a></li>
+  </ul>
+  <div class="nav-right">
+    <span class="nav-date" id="navDate"></span>
+    <button class="btn-theme" id="themeToggle" onclick="Theme.toggle()"></button>
+    <button class="btn-signout" onclick="Auth.signOut()"><i class="fa fa-right-from-bracket"></i> Sign Out</button>
+  </div>
+</nav>
+<nav class="bottom-nav">
+  <a href="index.html"><i class="fa fa-gauge-high"></i><span>Dashboard</span></a>
+  <a href="income-expense.html"><i class="fa fa-arrows-left-right"></i><span>Cashflow</span></a>
+  <a href="loans.html"><i class="fa fa-landmark"></i><span>Loans</span></a>
+  <a href="credit-cards.html"><i class="fa fa-credit-card"></i><span>Cards</span></a>
+  <a href="reports.html"><i class="fa fa-chart-pie"></i><span>Reports</span></a>
+  <a href="settings.html" class="active"><i class="fa fa-gear"></i><span>Settings</span></a>
+</nav>
+
+
+<div class="page" style="max-width:760px">
+  <div class="page-header">
+    <div class="page-header-left">
+      <h1><i class="fa fa-gear" style="color:var(--blue)"></i> Settings</h1>
+      <p>Manage your Finance Command Center preferences and data.</p>
+    </div>
+  </div>
+
+  <!-- Appearance -->
+  <div class="settings-card">
+    <div class="settings-card-head"><i class="fa fa-palette" style="color:var(--purple)"></i> Appearance</div>
+    <div class="settings-row">
+      <div>
+        <div class="settings-row-label">Theme</div>
+        <div class="settings-row-desc">Choose between dark and light mode. Your preference is saved automatically.</div>
+      </div>
+      <div class="theme-switcher">
+        <button class="theme-opt" id="opt-dark" onclick="setTheme('dark')"><i class="fa fa-moon"></i> Dark</button>
+        <button class="theme-opt" id="opt-light" onclick="setTheme('light')"><i class="fa fa-sun"></i> Light</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Account -->
+  <div class="settings-card">
+    <div class="settings-card-head"><i class="fa fa-user-circle" style="color:var(--blue)"></i> Account</div>
+    <div class="settings-row">
+      <div>
+        <div class="settings-row-label">Signed In As</div>
+        <div class="settings-row-desc" id="userEmail">Loading...</div>
+      </div>
+      <button class="btn btn-signout" onclick="Auth.signOut()"><i class="fa fa-right-from-bracket"></i> Sign Out</button>
+    </div>
+    <div class="settings-row">
+      <div>
+        <div class="settings-row-label">Change Password</div>
+        <div class="settings-row-desc">Send a password reset link to your registered email address.</div>
+      </div>
+      <button class="btn btn-ghost btn-sm" onclick="sendReset()"><i class="fa fa-key"></i> Reset Password</button>
+    </div>
+  </div>
+
+  <!-- App Info -->
+  <div class="settings-card">
+    <div class="settings-card-head"><i class="fa fa-info-circle" style="color:var(--blue)"></i> Application</div>
+    <div class="settings-row">
+      <div>
+        <div class="settings-row-label">Finance Command Center</div>
+        <div class="settings-row-desc">Version 2.1.0 · Personal Finance Planner</div>
+      </div>
+      <span class="badge badge-green"><i class="fa fa-check"></i> Active</span>
+    </div>
+    <div class="settings-row">
+      <div>
+        <div class="settings-row-label">Data Storage</div>
+        <div class="settings-row-desc">All data is securely stored in Supabase cloud — accessible from any device.</div>
+      </div>
+      <span class="badge badge-blue">☁️ Cloud</span>
+    </div>
+    <div class="settings-row">
+      <div>
+        <div class="settings-row-label">Sync Status</div>
+        <div class="settings-row-desc" id="syncDesc">Checking connection...</div>
+      </div>
+      <span class="badge" id="syncBadge" style="background:var(--bg3);color:var(--text2)">—</span>
+    </div>
+    <div class="settings-row">
+      <div>
+        <div class="settings-row-label">Storage Usage</div>
+        <div class="settings-row-desc" id="storageDesc">Loading...</div>
+      </div>
+      <span class="badge badge-gray" id="storageBadge">—</span>
+    </div>
+  </div>
+
+  <!-- Data Management -->
+  <div class="settings-card">
+    <div class="settings-card-head"><i class="fa fa-database" style="color:var(--green)"></i> Data Management</div>
+    <div class="settings-row">
+      <div>
+        <div class="settings-row-label">Export JSON Backup</div>
+        <div class="settings-row-desc">Download a complete backup of all your data as a JSON file.</div>
+      </div>
+      <button class="btn btn-ghost btn-sm" onclick="exportData()"><i class="fa fa-download"></i> Export</button>
+    </div>
+    <div class="settings-row">
+      <div>
+        <div class="settings-row-label">Export to CSV</div>
+        <div class="settings-row-desc">Export all monthly data as a spreadsheet-compatible CSV file.</div>
+      </div>
+      <button class="btn btn-ghost btn-sm" onclick="exportCSV()"><i class="fa fa-file-csv"></i> Export CSV</button>
+    </div>
+  </div>
+
+  <!-- Loans on File -->
+  <div class="settings-card">
+    <div class="settings-card-head"><i class="fa fa-landmark" style="color:var(--red)"></i> Loans on File</div>
+    <div id="loansInfo"><div style="padding:14px 20px;color:var(--text2);font-size:13px">Loading...</div></div>
+  </div>
+
+  <!-- Danger Zone -->
+  <div class="settings-card" style="border-color:rgba(248,81,73,0.25)">
+    <div class="settings-card-head" style="color:var(--red)"><i class="fa fa-triangle-exclamation"></i> Danger Zone</div>
+    <div class="settings-row">
+      <div>
+        <div class="settings-row-label" style="color:var(--red)">Reset All Data</div>
+        <div class="settings-row-desc">⚠️ Permanently deletes ALL your data from Supabase. This action cannot be undone.</div>
+      </div>
+      <button class="btn btn-danger btn-sm" onclick="resetAll()"><i class="fa fa-rotate-left"></i> Reset All</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="toast"></div>
+<script src="assets/js/supabase-client.js"></script>
+<script src="assets/js/utils.js"></script>
+<script src="assets/js/data.js"></script>
+<script src="assets/js/theme.js"></script>
+<script src="assets/js/storage.js"></script>
+<script>
+let _user;
+
+document.addEventListener('DOMContentLoaded', async () => {
+  _user = await Auth.requireAuth(); if (!_user) return;
+  Theme.init();
+  updateThemeButtons();
+  document.getElementById('navDate').textContent = new Date().toLocaleDateString('en-IN',{weekday:'short',day:'numeric',month:'short',year:'numeric'});
+  document.getElementById('userEmail').textContent = _user.email;
+  checkSync();
+  loadStats();
+  loadLoans();
+});
+
+function updateThemeButtons() {
+  const isDark = Theme.current() === 'dark';
+  document.getElementById('opt-dark').classList.toggle('active', isDark);
+  document.getElementById('opt-light').classList.toggle('active', !isDark);
+}
+
+function setTheme(t) {
+  Theme.apply(t);
+  updateThemeButtons();
+  Utils.toast(`${t==='dark'?'Dark':'Light'} mode enabled!`);
+}
+
+async function checkSync() {
+  try {
+    const u = await Auth.getUser();
+    if (u) {
+      document.getElementById('syncDesc').textContent = `Connected · ${u.email}`;
+      document.getElementById('syncBadge').className = 'badge badge-green';
+      document.getElementById('syncBadge').textContent = '✓ Synced';
+    }
+  } catch(e) {
+    document.getElementById('syncDesc').textContent = 'Unable to connect to Supabase';
+    document.getElementById('syncBadge').className = 'badge badge-red';
+    document.getElementById('syncBadge').textContent = '✗ Offline';
+  }
+}
+
+async function loadStats() {
+  try {
+    const [months, loans, cards] = await Promise.all([
+      DB.getMonths(_user.id), DB.getLoans(_user.id), DB.getCards(_user.id)
+    ]);
+    const mCount = Object.keys(months).length;
+    const eCount = Object.values(months).reduce((s,m)=>s+m.expenses.length+m.extraIncomes.length,0);
+    document.getElementById('storageDesc').textContent = `${mCount} months · ${eCount} transactions · ${loans.length} loans · ${cards.length} credit cards`;
+    document.getElementById('storageBadge').textContent = `${mCount + eCount + loans.length + cards.length} records`;
+  } catch(e) {
+    document.getElementById('storageDesc').textContent = 'Unable to load stats';
+  }
+}
+
+async function sendReset() {
+  try {
+    await Auth.resetPassword(_user.email);
+    Utils.toast('Reset link sent! Check your email.');
+  } catch(e) {
+    Utils.toast('Failed to send reset link','error');
+  }
+}
+
+async function exportData() {
+  try {
+    const [months, loans, cards] = await Promise.all([
+      DB.getMonths(_user.id), DB.getLoans(_user.id), DB.getCards(_user.id)
+    ]);
+    const backup = {
+      version: '2.1', exportedAt: new Date().toISOString(),
+      user: _user.email, months, loans, cards
+    };
+    const blob = new Blob([JSON.stringify(backup, null, 2)], {type:'application/json'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `finance-backup-${new Date().toISOString().split('T')[0]}.json`;
+    a.click(); URL.revokeObjectURL(a.href);
+    Utils.toast('Backup exported!');
+  } catch(e) {
+    Utils.toast('Export failed','error');
+  }
+}
+
+async function exportCSV() {
+  try {
+    const months = await DB.getMonths(_user.id);
+    const rows = [];
+    Object.values(months).sort((a,b)=>a.key>b.key?1:-1).forEach(m => {
+      rows.push({ Month: m.label||m.key, Type:'Income', Name:'Salary / Income', Planned: m.income||0, Actual: m.incomeActual||'', Status: m.incomeStatus||'expected', Date: m.incomeDate||'', Note: m.incomeNote||'' });
+      m.extraIncomes.forEach(e => rows.push({ Month: m.label||m.key, Type:'Extra Income', Name:e.name, Planned:e.planned||0, Actual:e.actual||'', Status:e.status||'expected', Date:e.date||'', Note:e.note||'' }));
+      m.expenses.forEach(e => rows.push({ Month: m.label||m.key, Type:'Expense', Name:e.name, Planned:e.planned||0, Actual:e.actual||'', Status:e.status||'pending', Date:e.date||'', Note:e.note||'' }));
+    });
+    Utils.exportToCSV(`finance-data-${new Date().toISOString().split('T')[0]}`, rows);
+  } catch(e) {
+    Utils.toast('CSV export failed','error');
+  }
+}
+
+async function loadLoans() {
+  try {
+    const loans = await DB.getLoans(_user.id);
+    document.getElementById('loansInfo').innerHTML = loans.length
+      ? loans.map(l => `
+        <div class="settings-row">
+          <div>
+            <div class="settings-row-label">${l.name}</div>
+            <div class="settings-row-desc">${l.bank||'—'} · ${l.tenure||0} months · ${l.interestRate||0}% p.a. · ${l.emisPaid||0}/${l.tenure||0} EMIs paid</div>
+          </div>
+          <div style="text-align:right">
+            <div style="font-weight:800;color:var(--red);font-size:15px">${Utils.currency(l.outstanding)}</div>
+            <div style="font-size:11px;color:var(--text3)">outstanding</div>
+          </div>
+        </div>`).join('')
+      : '<div style="padding:14px 20px;color:var(--text2);font-size:13px">No loans on file. <a href="loans.html" style="color:var(--blue)">Add a loan →</a></div>';
+  } catch(e) {
+    document.getElementById('loansInfo').innerHTML = '<div style="padding:14px 20px;color:var(--text2)">Failed to load loans</div>';
+  }
+}
+
+async function resetAll() {
+  if (!confirm('This will DELETE ALL your data permanently. Are you absolutely sure?')) return;
+  if (!confirm('Final warning — this CANNOT be undone. Proceed?')) return;
+  try {
+    const sb = getSB();
+    await Promise.all([
+      sb.from('months').delete().eq('user_id',_user.id),
+      sb.from('month_expenses').delete().eq('user_id',_user.id),
+      sb.from('loans').delete().eq('user_id',_user.id),
+      sb.from('credit_cards').delete().eq('user_id',_user.id),
+    ]);
+    sessionStorage.clear();
+    Utils.toast('All data deleted. Redirecting...');
+    setTimeout(() => { location.href='index.html'; }, 1500);
+  } catch(e) {
+    Utils.toast('Reset failed. Please try again.','error');
+  }
+}
+</script>
+</body>
+</html>

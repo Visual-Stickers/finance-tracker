@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Credit Cards – Finance Command Center</title>
+<link rel="stylesheet" href="assets/css/app.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+<script>(function(){var t=localStorage.getItem('fcc-theme')||'dark';if(t==='light')document.body.classList.add('light');})();</script>
+<nav class="nav">
+  <a href="index.html" class="nav-brand"><div class="nav-brand-icon"><i class="fa fa-chart-line"></i></div><span>Finance Command Center</span></a>
+  <ul class="nav-links">
+    <li><a href="index.html"><i class="fa fa-gauge-high"></i><span>Dashboard</span></a></li>
+    <li><a href="income-expense.html"><i class="fa fa-arrows-left-right"></i><span>Income &amp; Expense</span></a></li>
+    <li><a href="loans.html"><i class="fa fa-landmark"></i><span>Loans</span></a></li>
+    <li><a href="credit-cards.html" class="active"><i class="fa fa-credit-card"></i><span>Credit Cards</span></a></li>
+    <li><a href="reports.html"><i class="fa fa-chart-pie"></i><span>Reports</span></a></li>
+    <li><a href="settings.html"><i class="fa fa-gear"></i><span>Settings</span></a></li>
+  </ul>
+  <div class="nav-right">
+    <span class="nav-date" id="navDate"></span>
+    <button class="btn-theme" id="themeToggle" onclick="Theme.toggle()"></button>
+    <button class="btn-signout" onclick="Auth.signOut()"><i class="fa fa-right-from-bracket"></i> Sign Out</button>
+  </div>
+</nav>
+<nav class="bottom-nav">
+  <a href="index.html"><i class="fa fa-gauge-high"></i><span>Dashboard</span></a>
+  <a href="income-expense.html"><i class="fa fa-arrows-left-right"></i><span>Cashflow</span></a>
+  <a href="loans.html"><i class="fa fa-landmark"></i><span>Loans</span></a>
+  <a href="credit-cards.html" class="active"><i class="fa fa-credit-card"></i><span>Cards</span></a>
+  <a href="reports.html"><i class="fa fa-chart-pie"></i><span>Reports</span></a>
+  <a href="settings.html"><i class="fa fa-gear"></i><span>Settings</span></a>
+</nav>
+
+
+<div class="page">
+  <div class="page-header">
+    <div class="page-header-left">
+      <h1><i class="fa fa-credit-card" style="color:var(--orange)"></i> Credit Cards</h1>
+      <p>Track your credit card balances, utilization and payments.</p>
+    </div>
+    <button class="btn btn-primary" onclick="openCardModal()"><i class="fa fa-plus"></i> Add Card</button>
+  </div>
+
+  <!-- Summary bar -->
+  <div id="ccSummary" style="display:none;margin-bottom:20px">
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px">
+      <div class="card card-sm" style="border-top:3px solid var(--orange)">
+        <div class="stat-label">Total Outstanding</div>
+        <div style="font-size:20px;font-weight:800;color:var(--orange)" id="ccs-os">—</div>
+      </div>
+      <div class="card card-sm" style="border-top:3px solid var(--blue)">
+        <div class="stat-label">Total Credit Limit</div>
+        <div style="font-size:20px;font-weight:800;color:var(--blue)" id="ccs-limit">—</div>
+      </div>
+      <div class="card card-sm" style="border-top:3px solid var(--green)">
+        <div class="stat-label">Total Available</div>
+        <div style="font-size:20px;font-weight:800;color:var(--green)" id="ccs-avail">—</div>
+      </div>
+      <div class="card card-sm" style="border-top:3px solid var(--yellow)">
+        <div class="stat-label">Overall Utilization</div>
+        <div style="font-size:20px;font-weight:800" id="ccs-util">—</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid-2" id="cardGrid"></div>
+</div>
+
+<!-- Card Modal -->
+<div class="modal-overlay" id="cardModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="card-modal-title"><i class="fa fa-credit-card" style="color:var(--blue)"></i> Add Credit Card</div>
+      <button class="modal-close" onclick="Utils.closeModal('cardModal')">×</button>
+    </div>
+    <input type="hidden" id="cm-id">
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Card Name *</label><input class="form-control" id="cm-name" placeholder="e.g. HDFC Millennia"></div>
+      <div class="form-group"><label class="form-label">Bank</label><input class="form-control" id="cm-bank" placeholder="e.g. HDFC Bank"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Credit Limit (₹)</label><input class="form-control" id="cm-limit" type="number" placeholder="0"></div>
+      <div class="form-group"><label class="form-label">Current Outstanding (₹)</label><input class="form-control" id="cm-outstanding" type="number" placeholder="0"></div>
+    </div>
+    <div class="form-group"><label class="form-label">Payment Due Date</label><input class="form-control" id="cm-due" type="date"></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="Utils.closeModal('cardModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveCard()"><i class="fa fa-check"></i> Save Card</button>
+    </div>
+  </div>
+</div>
+
+<!-- Pay Modal -->
+<div class="modal-overlay" id="payModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="pay-card-name"><i class="fa fa-money-bill-wave" style="color:var(--green)"></i> Make Payment</div>
+      <button class="modal-close" onclick="Utils.closeModal('payModal')">×</button>
+    </div>
+    <input type="hidden" id="pay-card-id">
+    <div class="form-group"><label class="form-label">Current Outstanding</label><input class="form-control" id="pay-outstanding" readonly></div>
+    <div class="form-group"><label class="form-label">Payment Amount (₹) *</label><input class="form-control" id="pay-amount" type="number" placeholder="Enter amount"></div>
+    <div class="form-group"><label class="form-label">Payment Date</label><input class="form-control" id="pay-date" type="date"></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="Utils.closeModal('payModal')">Cancel</button>
+      <button class="btn btn-success" onclick="savePayment()"><i class="fa fa-check"></i> Confirm Payment</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="toast"></div>
+<script src="assets/js/supabase-client.js"></script>
+<script src="assets/js/utils.js"></script>
+<script src="assets/js/data.js"></script>
+<script src="assets/js/theme.js"></script>
+<script src="assets/js/storage.js"></script>
+<script>
+let _user, _cards=[];
+
+const CC_GRADIENTS = [
+  'linear-gradient(135deg,#1558d6,#2979ff)',
+  'linear-gradient(135deg,#5b21b6,#8b5cf6)',
+  'linear-gradient(135deg,#065f46,#10b981)',
+  'linear-gradient(135deg,#b91c1c,#f85149)',
+  'linear-gradient(135deg,#c2410c,#f97316)',
+  'linear-gradient(135deg,#0e7490,#06b6d4)',
+];
+
+document.addEventListener('DOMContentLoaded', async () => {
+  _user = await Auth.requireAuth(); if (!_user) return;
+  Theme.init();
+  document.getElementById('navDate').textContent = new Date().toLocaleDateString('en-IN',{weekday:'short',day:'numeric',month:'short',year:'numeric'});
+  await DB.seed(_user.id);
+  await renderCards();
+});
+
+async function renderCards() {
+  _cards = await DB.getCards(_user.id);
+  renderSummary();
+  const el = document.getElementById('cardGrid');
+  if (!_cards.length) {
+    el.innerHTML = `<div class="card" style="grid-column:1/-1;text-align:center;padding:70px 24px">
+      <div style="font-size:56px;margin-bottom:16px">💳</div>
+      <h3 style="margin-bottom:8px;font-size:18px">No credit cards yet</h3>
+      <p style="color:var(--text2);margin-bottom:20px">Add your credit cards to track balances, utilization and payments.</p>
+      <button class="btn btn-primary" onclick="openCardModal()"><i class="fa fa-plus"></i> Add Your First Card</button>
+    </div>`;
+    return;
+  }
+  el.innerHTML = _cards.map((c,i) => buildCard(c,i)).join('');
+}
+
+function renderSummary() {
+  if (!_cards.length) { document.getElementById('ccSummary').style.display='none'; return; }
+  document.getElementById('ccSummary').style.display='';
+  const totalOS   = _cards.reduce((s,c)=>s+Number(c.outstanding||0),0);
+  const totalLim  = _cards.reduce((s,c)=>s+Number(c.limit||0),0);
+  const totalAvail = Math.max(0,totalLim-totalOS);
+  const util      = totalLim>0 ? Math.round((totalOS/totalLim)*100) : 0;
+  const utilColor = util>80?'var(--red)':util>50?'var(--yellow)':'var(--green)';
+  document.getElementById('ccs-os').textContent    = Utils.currency(totalOS);
+  document.getElementById('ccs-limit').textContent = Utils.currency(totalLim);
+  document.getElementById('ccs-avail').textContent = Utils.currency(totalAvail);
+  document.getElementById('ccs-util').textContent  = util+'%';
+  document.getElementById('ccs-util').style.color  = utilColor;
+}
+
+function buildCard(c, idx) {
+  const grad      = CC_GRADIENTS[idx % CC_GRADIENTS.length];
+  const util      = c.limit ? Math.min(100,Math.round((c.outstanding/c.limit)*100)) : 0;
+  const avail     = Math.max(0,(c.limit||0)-(c.outstanding||0));
+  const utilColor = util>80?'#f85149':util>50?'#d29922':'#3fb950';
+  const dueDate   = c.dueDate ? new Date(c.dueDate) : null;
+  const daysUntilDue = dueDate ? Math.ceil((dueDate-new Date())/(1000*60*60*24)) : null;
+  const dueBadge  = daysUntilDue!=null && daysUntilDue<=7
+    ? `<span class="badge badge-red" style="margin-left:8px"><i class="fa fa-exclamation"></i> Due in ${daysUntilDue}d</span>` : '';
+  return `
+  <div class="card" style="padding:0;overflow:hidden;transition:var(--trans)" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform=''">
+    <div class="cc-visual" style="background:${grad}">
+      <div class="cc-chip"></div>
+      <div class="cc-name">${c.name}${dueBadge}</div>
+      <div><div class="cc-limit-label">Credit Limit</div><div class="cc-limit">${Utils.currency(c.limit||0)}</div></div>
+      <div class="cc-row">
+        <div><div class="cc-col-label">Outstanding</div><div class="cc-col-val">${Utils.currency(c.outstanding||0)}</div></div>
+        <div><div class="cc-col-label">Available</div><div class="cc-col-val">${Utils.currency(avail)}</div></div>
+        <div><div class="cc-col-label">Bank</div><div class="cc-col-val">${c.bank||'—'}</div></div>
+      </div>
+    </div>
+    <div style="padding:14px 18px">
+      <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:6px">
+        <span style="color:var(--text2)">Utilization: <strong style="color:${utilColor}">${util}%</strong>
+          ${util>80?'<span style="color:var(--red);font-size:11px"> ⚠️ High</span>':util>50?'<span style="color:var(--yellow);font-size:11px"> ⚠️ Moderate</span>':'<span style="color:var(--green);font-size:11px"> ✓ Healthy</span>'}</span>
+        ${c.dueDate?`<span style="color:var(--text3);font-size:11px">Due: ${Utils.shortDate(c.dueDate)}</span>`:''}
+      </div>
+      <div class="progress-bar" style="height:7px;margin-bottom:12px">
+        <div class="progress-fill" style="width:${util}%;background:${utilColor}"></div>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn btn-success btn-sm" onclick="openPayModal('${c.id}')"><i class="fa fa-money-bill-wave"></i> Pay Now</button>
+        <button class="btn btn-ghost btn-sm" onclick="openEditCard('${c.id}')"><i class="fa fa-pen"></i> Edit</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteCard('${c.id}')"><i class="fa fa-trash"></i></button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function openCardModal(card) {
+  document.getElementById('card-modal-title').innerHTML = card
+    ? '<i class="fa fa-pen" style="color:var(--blue)"></i> Edit Card'
+    : '<i class="fa fa-credit-card" style="color:var(--blue)"></i> Add Credit Card';
+  document.getElementById('cm-id').value          = card?.id||'';
+  document.getElementById('cm-name').value        = card?.name||'';
+  document.getElementById('cm-bank').value        = card?.bank||'';
+  document.getElementById('cm-limit').value       = card?.limit||'';
+  document.getElementById('cm-outstanding').value = card?.outstanding||'';
+  document.getElementById('cm-due').value         = card?.dueDate||'';
+  Utils.openModal('cardModal');
+}
+function openEditCard(id) { const c=_cards.find(c=>c.id===id); if(c) openCardModal(c); }
+
+async function saveCard() {
+  const name=document.getElementById('cm-name').value.trim();
+  if(!name){Utils.toast('Card name is required','error');return;}
+  const card={
+    id:document.getElementById('cm-id').value||null, name,
+    bank:document.getElementById('cm-bank').value.trim(),
+    limit:parseFloat(document.getElementById('cm-limit').value)||0,
+    outstanding:parseFloat(document.getElementById('cm-outstanding').value)||0,
+    dueDate:document.getElementById('cm-due').value||null,
+  };
+  const ok=await DB.saveCard(_user.id,card);
+  if(!ok){Utils.toast('Failed to save card','error');return;}
+  Utils.closeModal('cardModal'); Utils.toast(card.id?'Card updated!':'Card added!'); await renderCards();
+}
+
+function openPayModal(id) {
+  const c=_cards.find(c=>c.id===id); if(!c) return;
+  document.getElementById('pay-card-name').innerHTML=`<i class="fa fa-money-bill-wave" style="color:var(--green)"></i> Pay — ${c.name}`;
+  document.getElementById('pay-card-id').value=id;
+  document.getElementById('pay-outstanding').value=Utils.currency(c.outstanding||0);
+  document.getElementById('pay-amount').value=c.outstanding||'';
+  document.getElementById('pay-date').value=new Date().toISOString().split('T')[0];
+  Utils.openModal('payModal');
+}
+async function savePayment() {
+  const id=document.getElementById('pay-card-id').value;
+  const c=_cards.find(c=>c.id===id); if(!c) return;
+  const amount=parseFloat(document.getElementById('pay-amount').value);
+  if(isNaN(amount)||amount<=0){Utils.toast('Enter a valid amount','error');return;}
+  const date=document.getElementById('pay-date').value;
+  const ok=await DB.payCard(_user.id,c,{amount,date});
+  if(!ok){Utils.toast('Failed to save payment','error');return;}
+  Utils.closeModal('payModal'); Utils.toast('Payment recorded!'); await renderCards();
+}
+async function deleteCard(id) {
+  if(!confirm('Delete this card permanently?')) return;
+  await DB.deleteCard(_user.id,id); Utils.toast('Card removed'); await renderCards();
+}
+</script>
+</body>
+</html>
