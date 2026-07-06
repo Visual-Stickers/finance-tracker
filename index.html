@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard — Finance Tracker</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+
+<!-- Stats -->
+<div class="stats-grid" id="statsGrid">
+  <div class="stat-card blue">
+    <div class="stat-label"><i class="fa-solid fa-wallet"></i> This Month Income</div>
+    <div class="stat-value" id="s-income">—</div>
+    <div class="stat-sub" id="s-income-sub">Loading…</div>
+  </div>
+  <div class="stat-card red">
+    <div class="stat-label"><i class="fa-solid fa-arrow-up"></i> This Month Expenses</div>
+    <div class="stat-value" id="s-expense">—</div>
+    <div class="stat-sub" id="s-expense-sub">Loading…</div>
+  </div>
+  <div class="stat-card green">
+    <div class="stat-label"><i class="fa-solid fa-piggy-bank"></i> Net Savings</div>
+    <div class="stat-value" id="s-savings">—</div>
+    <div class="stat-sub" id="s-savings-sub">Income − Expenses</div>
+  </div>
+  <div class="stat-card orange">
+    <div class="stat-label"><i class="fa-solid fa-landmark"></i> Total Loan Outstanding</div>
+    <div class="stat-value" id="s-loan">—</div>
+    <div class="stat-sub" id="s-loan-sub">Loading…</div>
+  </div>
+</div>
+
+<!-- Charts row -->
+<div class="grid-2 section" style="margin-top:20px">
+  <div class="card card-pad">
+    <div class="section-header">
+      <div class="section-title">Income vs Expenses</div>
+      <div class="tabs" id="chartRangeTabs">
+        <button class="tab-btn active" data-range="6">6M</button>
+        <button class="tab-btn" data-range="12">12M</button>
+      </div>
+    </div>
+    <div class="chart-box"><canvas id="ieChart"></canvas></div>
+  </div>
+  <div class="card card-pad">
+    <div class="section-header">
+      <div class="section-title">Expense Breakdown</div>
+    </div>
+    <div class="chart-box"><canvas id="catChart" style="max-height:220px"></canvas></div>
+  </div>
+</div>
+
+<!-- Recent transactions + Loans -->
+<div class="grid-2 section">
+  <div class="card">
+    <div class="section-header" style="padding:16px 16px 0">
+      <div class="section-title">Recent Transactions</div>
+      <a href="income.html" style="font-size:12px;color:var(--blue)">See all</a>
+    </div>
+    <div id="recentList"></div>
+  </div>
+  <div class="card card-pad">
+    <div class="section-header">
+      <div class="section-title">Loan Overview</div>
+      <a href="loans.html" style="font-size:12px;color:var(--blue)">Manage</a>
+    </div>
+    <div id="loanOverview"></div>
+  </div>
+</div>
+
+<script src="js/config.js"></script>
+<script src="js/utils.js"></script>
+<script src="js/nav.js"></script>
+<script>
+buildLayout('Dashboard');
+
+let ieChartInst, catChartInst;
+
+async function loadDashboard() {
+  const now   = new Date();
+  const ms    = U.monthStart(now);
+  const me    = U.monthEnd(now);
+
+  const [incRows, expRows, loans, cards] = await Promise.all([
+    db.select('income',       `date=gte.${ms}&date=lte.${me}&order=date.desc`),
+    db.select('expenses',     `date=gte.${ms}&date=lte.${me}&order=date.desc`),
+    db.select('loans',        `order=created_at.desc`),
+    db.select('credit_cards', `order=created_at.desc`),
+  ]);
+
+  const totalInc  = incRows.reduce((s,r) => s + +r.amount, 0);
+  const totalExp  = expRows.reduce((s,r) => s + +r.amount, 0);
+  const savings   = totalInc - totalExp;
+  const loanOS    = loans.reduce((s,l) => s + +l.outstanding, 0);
+  const ccOS      = cards.reduce((s,c) => s + +c.outstanding, 0);
+
+  document.getElementById('s-income').textContent  = U.inr(totalInc);
+  document.getElementById('s-expense').textContent = U.inr(totalExp);
+  document.getElementById('s-savings').textContent = U.inr(savings);
+  document.getElementById('s-savings').style.color = savings >= 0 ? 'var(--green)' : 'var(--red)';
+  document.getElementById('s-loan').textContent    = U.inr(loanOS + ccOS);
+  document.getElementById('s-income-sub').textContent  = `${incRows.length} transaction${incRows.length!==1?'s':''}`;
+  document.getElementById('s-expense-sub').textContent = `${expRows.length} transaction${expRows.length!==1?'s':''}`;
+  document.getElementById('s-loan-sub').textContent    = `${loans.length} loan${loans.length!==1?'s':''} + ${cards.length} card${cards.length!==1?'s':''}`;
+
+  renderRecentList([...incRows.map(r=>({...r,_type:'income'})), ...expRows.map(r=>({...r,_type:'expense'}))].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,8));
+  renderLoanOverview(loans);
+  loadCharts(6);
+}
+
+function renderRecentList(rows) {
+  const el = document.getElementById('recentList');
+  if (!rows.length) { el.innerHTML = '<div class="empty"><i class="fa-solid fa-inbox"></i><p>No transactions this month</p></div>'; return; }
+  el.innerHTML = rows.map(r => `
+    <div style="display:flex;align-items:center;gap:12px;padding:10px 16px;border-bottom:1px solid var(--border)">
+      <div style="width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:13px;
+        background:${r._type==='income'?'var(--green-light)':'var(--red-light)'};
+        color:${r._type==='income'?'var(--green)':'var(--red)'}">
+        <i class="fa-solid ${r._type==='income'?'fa-arrow-down':'fa-arrow-up'}"></i>
+      </div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;font-weight:500">${U.trunc(r.description||r.category,28)}</div>
+        <div style="font-size:11px;color:var(--text2)">${r.category} · ${U.fmtDate(r.date)}</div>
+      </div>
+      <div style="font-weight:600;font-size:13px;color:${r._type==='income'?'var(--green)':'var(--red)'}">
+        ${r._type==='income'?'+':'−'}${U.inr(r.amount)}
+      </div>
+    </div>`).join('');
+}
+
+function renderLoanOverview(loans) {
+  const el = document.getElementById('loanOverview');
+  if (!loans.length) { el.innerHTML = '<div class="empty"><i class="fa-solid fa-landmark"></i><p>No loans added</p></div>'; return; }
+  el.innerHTML = loans.map(l => {
+    const pct = Math.min(100, Math.round(((+l.principal - +l.outstanding) / +l.principal)*100));
+    return `
+      <div style="margin-bottom:16px">
+        <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+          <span style="font-size:13px;font-weight:600">${l.name}</span>
+          <span style="font-size:12px;color:var(--text2)">${U.inr(l.outstanding)} left</span>
+        </div>
+        <div style="font-size:11px;color:var(--text2);margin-bottom:6px">${l.bank||''} · EMI ${U.inr(l.emi)}/mo · ${pct}% paid</div>
+        <div class="progress"><div class="progress-fill" style="width:${pct}%;background:var(--blue)"></div></div>
+      </div>`;
+  }).join('');
+}
+
+async function loadCharts(months) {
+  // Build last N months
+  const labels = [], incData = [], expData = [];
+  for (let i = months-1; i >= 0; i--) {
+    const d = new Date(); d.setDate(1); d.setMonth(d.getMonth()-i);
+    const ms = U.monthStart(d), me = U.monthEnd(d);
+    labels.push(U.monthLabel(ms));
+    const [inc, exp] = await Promise.all([
+      db.select('income',   `date=gte.${ms}&date=lte.${me}&select=amount`),
+      db.select('expenses', `date=gte.${ms}&date=lte.${me}&select=amount`),
+    ]);
+    incData.push(inc.reduce((s,r)=>s+ +r.amount,0));
+    expData.push(exp.reduce((s,r)=>s+ +r.amount,0));
+  }
+
+  if (ieChartInst) ieChartInst.destroy();
+  ieChartInst = new Chart(document.getElementById('ieChart'), {
+    type: 'bar',
+    data: { labels,
+      datasets: [
+        { label:'Income',  data:incData, backgroundColor:'rgba(52,199,89,.75)',  borderRadius:5, borderSkipped:false },
+        { label:'Expense', data:expData, backgroundColor:'rgba(255,59,48,.70)',  borderRadius:5, borderSkipped:false },
+      ]
+    },
+    options: chartOpts()
+  });
+
+  // Category doughnut (current month)
+  const now = new Date();
+  const catRows = await db.select('expenses', `date=gte.${U.monthStart(now)}&date=lte.${U.monthEnd(now)}&select=category,amount`);
+  const catMap = {};
+  catRows.forEach(r => { catMap[r.category] = (catMap[r.category]||0) + +r.amount; });
+  const catLabels = Object.keys(catMap);
+  const catVals   = catLabels.map(k => catMap[k]);
+  const colors = ['#007aff','#34c759','#ff3b30','#ff9500','#af52de','#5ac8fa','#ff2d55','#ffcc00'];
+
+  if (catChartInst) catChartInst.destroy();
+  if (!catLabels.length) { document.getElementById('catChart').parentElement.innerHTML = '<div class="empty"><p>No expense data</p></div>'; return; }
+  catChartInst = new Chart(document.getElementById('catChart'), {
+    type: 'doughnut',
+    data: { labels: catLabels, datasets:[{ data:catVals, backgroundColor:colors, borderWidth:0, hoverOffset:4 }] },
+    options: { responsive:true, maintainAspectRatio:true, cutout:'62%',
+      plugins:{ legend:{ position:'bottom', labels:{ font:{size:11}, padding:12, usePointStyle:true } },
+        tooltip:{ callbacks:{ label: c => ' '+U.inr(c.raw) } } } }
+  });
+}
+
+function chartOpts() {
+  return {
+    responsive: true, maintainAspectRatio: true,
+    plugins: {
+      legend: { labels:{ font:{size:11}, usePointStyle:true } },
+      tooltip: { callbacks:{ label: c => ' '+U.inr(c.raw) } }
+    },
+    scales: {
+      x: { grid:{ display:false }, ticks:{ font:{size:11} } },
+      y: { grid:{ color:'rgba(0,0,0,.05)' }, ticks:{ font:{size:11}, callback: v => '₹'+(v/1000).toFixed(0)+'k' } }
+    }
+  };
+}
+
+document.querySelectorAll('[data-range]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('[data-range]').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    loadCharts(+btn.dataset.range);
+  });
+});
+
+loadDashboard();
+</script>
+</body>
+</html>

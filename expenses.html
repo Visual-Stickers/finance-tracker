@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Expenses — Finance Tracker</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+</head>
+<body>
+
+<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:20px">
+  <div class="date-bar">
+    <div class="tabs" id="rangeTabs">
+      <button class="tab-btn active" data-range="month">Month</button>
+      <button class="tab-btn" data-range="year">Year</button>
+      <button class="tab-btn" data-range="custom">Custom</button>
+    </div>
+    <input type="date" class="form-control" id="dateFrom" style="display:none">
+    <input type="date" class="form-control" id="dateTo"   style="display:none">
+  </div>
+  <div style="display:flex;gap:8px">
+    <button class="btn btn-ghost btn-sm" onclick="openBulk()"><i class="fa-solid fa-upload"></i> Bulk Import</button>
+    <button class="btn btn-primary btn-sm" onclick="openAdd()"><i class="fa-solid fa-plus"></i> Add Expense</button>
+  </div>
+</div>
+
+<div style="display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap" id="expSummary"></div>
+
+<div class="table-wrap" id="tableWrap">
+  <div class="empty"><i class="fa-solid fa-spinner fa-spin"></i><p>Loading…</p></div>
+</div>
+
+<!-- Add/Edit Modal -->
+<div class="modal-overlay" id="addModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="addModalTitle">Add Expense</div>
+      <button class="modal-close" onclick="U.closeModal('addModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="editId">
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Date *</label>
+          <input type="date" class="form-control" id="fDate">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Amount (₹) *</label>
+          <input type="number" class="form-control" id="fAmount" placeholder="0">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Category *</label>
+          <select class="form-control form-select" id="fCategory">
+            <option>Rent</option><option>Loan EMI</option><option>Groceries</option>
+            <option>Food & Dining</option><option>Transport</option><option>Utilities</option>
+            <option>Healthcare</option><option>Entertainment</option><option>Shopping</option>
+            <option>Education</option><option>Insurance</option><option>Family</option>
+            <option>Credit Card</option><option>Other</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Description</label>
+          <input type="text" class="form-control" id="fDesc" placeholder="e.g. July rent">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Notes</label>
+        <input type="text" class="form-control" id="fNotes" placeholder="Optional notes">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="U.closeModal('addModal')">Cancel</button>
+      <button class="btn btn-primary" id="saveBtn" onclick="saveRow()"><i class="fa-solid fa-check"></i> Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Bulk Import Modal -->
+<div class="modal-overlay" id="bulkModal">
+  <div class="modal modal-xl">
+    <div class="modal-header">
+      <div class="modal-title">Bulk Import Expenses</div>
+      <button class="modal-close" onclick="U.closeModal('bulkModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:13px;color:var(--text2);margin-bottom:12px">
+        Format: <code style="background:var(--bg);padding:2px 6px;border-radius:4px">YYYY-MM-DD, Amount, Category, Description, Notes</code>
+      </p>
+      <textarea class="form-control" id="bulkText" rows="10"
+        placeholder="2026-07-05, 12000, Rent, July rent&#10;2026-07-06, 25184, Loan EMI, HDFC personal loan&#10;2026-07-10, 4000, Family, Amma&#10;2026-07-15, 1800, Other, Monthly seat"></textarea>
+      <div id="bulkPreview" style="margin-top:12px"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="U.closeModal('bulkModal')">Cancel</button>
+      <button class="btn btn-ghost" onclick="parseBulk()"><i class="fa-solid fa-eye"></i> Preview</button>
+      <button class="btn btn-primary" id="bulkSaveBtn" onclick="saveBulk()" style="display:none">
+        <i class="fa-solid fa-upload"></i> Import <span id="bulkCount"></span> rows
+      </button>
+    </div>
+  </div>
+</div>
+
+<script src="js/config.js"></script>
+<script src="js/utils.js"></script>
+<script src="js/nav.js"></script>
+<script>
+buildLayout('Expenses');
+let rows = [], parsedBulk = [];
+let dateFrom = U.monthStart(), dateTo = U.monthEnd();
+
+document.querySelectorAll('[data-range]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('[data-range]').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    const r = btn.dataset.range, now = new Date();
+    document.getElementById('dateFrom').style.display = r === 'custom' ? '' : 'none';
+    document.getElementById('dateTo').style.display   = r === 'custom' ? '' : 'none';
+    if (r === 'month') { dateFrom = U.monthStart(now); dateTo = U.monthEnd(now); load(); }
+    if (r === 'year')  { dateFrom = U.yearStart(now);  dateTo = U.yearEnd(now);  load(); }
+  });
+});
+document.getElementById('dateFrom').addEventListener('change', e => { dateFrom = e.target.value; load(); });
+document.getElementById('dateTo').addEventListener('change',   e => { dateTo   = e.target.value; load(); });
+
+async function load() {
+  document.getElementById('tableWrap').innerHTML = '<div class="empty"><i class="fa-solid fa-spinner fa-spin"></i><p>Loading…</p></div>';
+  rows = await db.select('expenses', `date=gte.${dateFrom}&date=lte.${dateTo}&order=date.desc`);
+  renderSummary(); renderTable();
+}
+
+function renderSummary() {
+  const total = rows.reduce((s,r) => s + +r.amount, 0);
+  const cats = {};
+  rows.forEach(r => { cats[r.category] = (cats[r.category]||0) + +r.amount; });
+  const top = Object.entries(cats).sort((a,b)=>b[1]-a[1]).slice(0,3);
+  document.getElementById('expSummary').innerHTML = `
+    <div class="card card-pad" style="flex:1;min-width:140px">
+      <div style="font-size:11px;font-weight:600;color:var(--text2);margin-bottom:4px">TOTAL SPENT</div>
+      <div style="font-size:22px;font-weight:700;color:var(--red)">${U.inr(total)}</div>
+    </div>
+    <div class="card card-pad" style="flex:1;min-width:140px">
+      <div style="font-size:11px;font-weight:600;color:var(--text2);margin-bottom:4px">TRANSACTIONS</div>
+      <div style="font-size:22px;font-weight:700">${rows.length}</div>
+    </div>
+    ${top.map(([cat,amt]) => `
+    <div class="card card-pad" style="flex:1;min-width:140px">
+      <div style="font-size:11px;font-weight:600;color:var(--text2);margin-bottom:4px">${cat.toUpperCase()}</div>
+      <div style="font-size:22px;font-weight:700;color:var(--red)">${U.inr(amt)}</div>
+    </div>`).join('')}`;
+}
+
+function renderTable() {
+  const wrap = document.getElementById('tableWrap');
+  if (!rows.length) {
+    wrap.innerHTML = '<div class="empty"><i class="fa-solid fa-receipt"></i><p>No expenses for this period.<br>Click <strong>Add Expense</strong> or use <strong>Bulk Import</strong>.</p></div>';
+    return;
+  }
+  wrap.innerHTML = `
+    <table>
+      <thead><tr><th>Date</th><th>Category</th><th>Description</th><th>Notes</th><th class="td-right">Amount</th><th style="width:80px"></th></tr></thead>
+      <tbody>${rows.map(r => `
+        <tr>
+          <td>${U.fmtDate(r.date)}</td>
+          <td><span class="badge badge-red">${r.category}</span></td>
+          <td>${r.description||'—'}</td>
+          <td class="td-muted">${r.notes||''}</td>
+          <td class="td-right" style="font-weight:600;color:var(--red)">${U.inr(r.amount)}</td>
+          <td><div class="row-actions">
+            <button class="btn btn-ghost btn-xs btn-icon" onclick="editRow('${r.id}')"><i class="fa-solid fa-pen"></i></button>
+            <button class="btn btn-ghost btn-xs btn-icon" onclick="deleteRow('${r.id}')"><i class="fa-solid fa-trash"></i></button>
+          </div></td>
+        </tr>`).join('')}
+      </tbody>
+    </table>`;
+}
+
+function openAdd() {
+  document.getElementById('editId').value = '';
+  document.getElementById('addModalTitle').textContent = 'Add Expense';
+  document.getElementById('fDate').value = U.today();
+  document.getElementById('fAmount').value = '';
+  document.getElementById('fCategory').value = 'Rent';
+  document.getElementById('fDesc').value = '';
+  document.getElementById('fNotes').value = '';
+  U.openModal('addModal');
+}
+
+function editRow(id) {
+  const r = rows.find(x => x.id === id); if (!r) return;
+  document.getElementById('editId').value = r.id;
+  document.getElementById('addModalTitle').textContent = 'Edit Expense';
+  document.getElementById('fDate').value = U.isoDate(r.date);
+  document.getElementById('fAmount').value = r.amount;
+  document.getElementById('fCategory').value = r.category;
+  document.getElementById('fDesc').value = r.description||'';
+  document.getElementById('fNotes').value = r.notes||'';
+  U.openModal('addModal');
+}
+
+async function saveRow() {
+  const id = document.getElementById('editId').value;
+  const date = document.getElementById('fDate').value;
+  const amount = parseFloat(document.getElementById('fAmount').value);
+  if (!date || isNaN(amount) || amount <= 0) { U.toast('Date and amount are required','error'); return; }
+  const payload = { date, amount, category: document.getElementById('fCategory').value,
+    description: document.getElementById('fDesc').value||null,
+    notes: document.getElementById('fNotes').value||null };
+  const btn = document.getElementById('saveBtn');
+  U.loading(btn, true);
+  try {
+    if (id) await db.update('expenses', id, payload);
+    else    await db.insert('expenses', payload);
+    U.closeModal('addModal'); U.toast(id ? 'Expense updated!' : 'Expense added!'); await load();
+  } finally { U.loading(btn, false); }
+}
+
+async function deleteRow(id) {
+  if (!await U.confirm('Delete this expense?')) return;
+  await db.delete('expenses', id); U.toast('Deleted','warning'); await load();
+}
+
+function openBulk() {
+  document.getElementById('bulkText').value = '';
+  document.getElementById('bulkPreview').innerHTML = '';
+  document.getElementById('bulkSaveBtn').style.display = 'none';
+  parsedBulk = []; U.openModal('bulkModal');
+}
+
+function parseBulk() {
+  const lines = document.getElementById('bulkText').value.trim().split('\n').filter(l=>l.trim());
+  parsedBulk = []; const errors = [];
+  lines.forEach((line, i) => {
+    const p = line.split(',').map(s=>s.trim());
+    const date = p[0], amount = parseFloat(p[1]);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || isNaN(amount) || amount <= 0) {
+      errors.push(`Row ${i+1}: invalid — "${line}"`); return;
+    }
+    parsedBulk.push({ date, amount, category: p[2]||'Other', description: p[3]||null, notes: p[4]||null });
+  });
+  const preview = document.getElementById('bulkPreview');
+  preview.innerHTML = errors.length ? `<div style="color:var(--red);font-size:12px">${errors.map(e=>`<div>⚠ ${e}</div>`).join('')}</div>` : '';
+  if (parsedBulk.length) {
+    document.getElementById('bulkSaveBtn').style.display = '';
+    document.getElementById('bulkCount').textContent = parsedBulk.length;
+    preview.innerHTML += `
+      <div class="table-wrap" style="max-height:200px;overflow-y:auto;margin-top:8px">
+        <table><thead><tr><th>Date</th><th>Amount</th><th>Category</th><th>Description</th></tr></thead>
+        <tbody>${parsedBulk.map(r=>`<tr><td>${r.date}</td><td style="color:var(--red);font-weight:600">${U.inr(r.amount)}</td><td>${r.category}</td><td>${r.description||'—'}</td></tr>`).join('')}</tbody></table>
+      </div>
+      <div style="font-size:12px;color:var(--text2);margin-top:6px">${parsedBulk.length} row${parsedBulk.length!==1?'s':''} ready</div>`;
+  }
+}
+
+async function saveBulk() {
+  if (!parsedBulk.length) return;
+  const btn = document.getElementById('bulkSaveBtn');
+  U.loading(btn, true);
+  try {
+    await db.insert('expenses', parsedBulk);
+    U.closeModal('bulkModal'); U.toast(`${parsedBulk.length} expenses imported!`); await load();
+  } finally { U.loading(btn, false); }
+}
+
+load();
+</script>
+</body>
+</html>

@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Reports — Finance Tracker</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    .report-kpi {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+    .kpi {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px;
+      box-shadow: var(--shadow);
+    }
+    .kpi-label { font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px; }
+    .kpi-value { font-size:20px;font-weight:700; }
+    @media(max-width:1000px){ .report-kpi{ grid-template-columns:repeat(3,1fr); } }
+    @media(max-width:600px) { .report-kpi{ grid-template-columns:repeat(2,1fr); } }
+  </style>
+</head>
+<body>
+
+<!-- Range selector -->
+<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:24px">
+  <div class="tabs" id="rangeTabs">
+    <button class="tab-btn" data-range="daily">Daily</button>
+    <button class="tab-btn active" data-range="monthly">Monthly</button>
+    <button class="tab-btn" data-range="yearly">Yearly</button>
+    <button class="tab-btn" data-range="custom">Custom</button>
+  </div>
+  <div class="date-bar" id="customRange" style="display:none">
+    <input type="date" class="form-control" id="dateFrom">
+    <span style="color:var(--text2)">to</span>
+    <input type="date" class="form-control" id="dateTo">
+    <button class="btn btn-primary btn-sm" onclick="load()">Apply</button>
+  </div>
+  <div id="rangeLabel" style="font-size:13px;font-weight:600;color:var(--text2)"></div>
+</div>
+
+<!-- KPIs -->
+<div class="report-kpi" id="kpiRow"></div>
+
+<!-- Charts row 1 -->
+<div class="grid-2" style="margin-bottom:16px">
+  <div class="card card-pad">
+    <div class="section-title" style="margin-bottom:14px">Income vs Expenses</div>
+    <div class="chart-box"><canvas id="ieChart"></canvas></div>
+  </div>
+  <div class="card card-pad">
+    <div class="section-title" style="margin-bottom:14px">Net Savings Trend</div>
+    <div class="chart-box"><canvas id="savingsChart"></canvas></div>
+  </div>
+</div>
+
+<!-- Charts row 2 -->
+<div class="grid-2" style="margin-bottom:16px">
+  <div class="card card-pad">
+    <div class="section-title" style="margin-bottom:14px">Expense by Category</div>
+    <div class="chart-box"><canvas id="catChart" style="max-height:240px"></canvas></div>
+  </div>
+  <div class="card card-pad">
+    <div class="section-title" style="margin-bottom:14px">Income by Category</div>
+    <div class="chart-box"><canvas id="incCatChart" style="max-height:240px"></canvas></div>
+  </div>
+</div>
+
+<!-- Detail tables -->
+<div class="grid-2">
+  <div>
+    <div class="section-title" style="margin-bottom:10px">Top Expenses</div>
+    <div class="table-wrap" id="topExpTable"></div>
+  </div>
+  <div>
+    <div class="section-title" style="margin-bottom:10px">Income Breakdown</div>
+    <div class="table-wrap" id="incBreakTable"></div>
+  </div>
+</div>
+
+<script src="js/config.js"></script>
+<script src="js/utils.js"></script>
+<script src="js/nav.js"></script>
+<script>
+buildLayout('Reports');
+
+let activeRange = 'monthly';
+let charts = {};
+let dateFrom, dateTo;
+
+// Set default dates
+const now = new Date();
+dateFrom = U.monthStart(now);
+dateTo   = U.monthEnd(now);
+
+document.querySelectorAll('[data-range]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('[data-range]').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    activeRange = btn.dataset.range;
+    const cr = document.getElementById('customRange');
+    cr.style.display = activeRange === 'custom' ? 'flex' : 'none';
+    if (activeRange !== 'custom') {
+      applyRange(activeRange); load();
+    }
+  });
+});
+
+function applyRange(range) {
+  const now = new Date();
+  if (range === 'daily')   { dateFrom = U.today(); dateTo = U.today(); }
+  if (range === 'monthly') { dateFrom = U.monthStart(now); dateTo = U.monthEnd(now); }
+  if (range === 'yearly')  { dateFrom = U.yearStart(now);  dateTo = U.yearEnd(now); }
+}
+
+document.getElementById('dateFrom').addEventListener('change', e => dateFrom = e.target.value);
+document.getElementById('dateTo').addEventListener('change',   e => dateTo   = e.target.value);
+
+async function load() {
+  if (activeRange !== 'custom') applyRange(activeRange);
+  document.getElementById('kpiRow').innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:20px"><i class="fa-solid fa-spinner fa-spin" style="font-size:20px;color:var(--text3)"></i></div>';
+
+  const label = activeRange === 'daily' ? `Today — ${U.fmtDate(U.today())}`
+    : activeRange === 'monthly' ? U.monthLabel(dateFrom)
+    : activeRange === 'yearly'  ? new Date().getFullYear() + ' Full Year'
+    : `${U.fmtDate(dateFrom)} → ${U.fmtDate(dateTo)}`;
+  document.getElementById('rangeLabel').textContent = label;
+
+  const [incRows, expRows, loans, cards] = await Promise.all([
+    db.select('income',       `date=gte.${dateFrom}&date=lte.${dateTo}&order=date.desc`),
+    db.select('expenses',     `date=gte.${dateFrom}&date=lte.${dateTo}&order=date.desc`),
+    db.select('loans',        'select=outstanding,emi'),
+    db.select('credit_cards', 'select=outstanding,credit_limit'),
+  ]);
+
+  const totalInc  = incRows.reduce((s,r) => s + +r.amount, 0);
+  const totalExp  = expRows.reduce((s,r) => s + +r.amount, 0);
+  const savings   = totalInc - totalExp;
+  const loanOS    = loans.reduce((s,l) => s + +l.outstanding, 0);
+  const ccOS      = cards.reduce((s,c) => s + +c.outstanding, 0);
+  const savingsPct = totalInc ? ((savings/totalInc)*100).toFixed(1) : 0;
+
+  renderKPIs(totalInc, totalExp, savings, savingsPct, loanOS + ccOS);
+
+  // Category maps
+  const expCats = {}, incCats = {};
+  expRows.forEach(r => { expCats[r.category] = (expCats[r.category]||0) + +r.amount; });
+  incRows.forEach(r => { incCats[r.category] = (incCats[r.category]||0) + +r.amount; });
+
+  renderCharts(incRows, expRows, incCats, expCats, totalInc, totalExp, savings);
+  renderTables(expRows, incCats);
+}
+
+function renderKPIs(inc, exp, sav, savPct, debt) {
+  document.getElementById('kpiRow').innerHTML = `
+    <div class="kpi"><div class="kpi-label">Total Income</div><div class="kpi-value" style="color:var(--green)">${U.inr(inc)}</div></div>
+    <div class="kpi"><div class="kpi-label">Total Expenses</div><div class="kpi-value" style="color:var(--red)">${U.inr(exp)}</div></div>
+    <div class="kpi"><div class="kpi-label">Net Savings</div><div class="kpi-value" style="color:${sav>=0?'var(--green)':'var(--red)'}">${U.inr(sav)}</div></div>
+    <div class="kpi"><div class="kpi-label">Savings Rate</div><div class="kpi-value" style="color:var(--blue)">${savPct}%</div></div>
+    <div class="kpi"><div class="kpi-label">Total Debt</div><div class="kpi-value" style="color:var(--orange)">${U.inr(debt)}</div></div>`;
+}
+
+function destroyChart(id) { if (charts[id]) { charts[id].destroy(); delete charts[id]; } }
+
+function renderCharts(incRows, expRows, incCats, expCats, totalInc, totalExp, savings) {
+  const COLORS = ['#007aff','#34c759','#ff3b30','#ff9500','#af52de','#5ac8fa','#ff2d55','#ffcc00','#00b4d8'];
+
+  // IE bar chart — group by day/week/month depending on range
+  destroyChart('ie'); destroyChart('sav'); destroyChart('cat'); destroyChart('inccat');
+
+  // Build time-series for IE chart
+  const ieMap = {};
+  [...incRows.map(r=>({...r,_t:'inc'})), ...expRows.map(r=>({...r,_t:'exp'}))].forEach(r => {
+    const key = activeRange === 'daily' ? r.date
+      : activeRange === 'yearly' ? r.date.slice(0,7)
+      : r.date;
+    if (!ieMap[key]) ieMap[key] = {inc:0, exp:0};
+    ieMap[key][r._t === 'inc' ? 'inc' : 'exp'] += +r.amount;
+  });
+  const ieKeys = Object.keys(ieMap).sort();
+  const ieLabels = ieKeys.map(k => {
+    if (activeRange === 'yearly') return U.monthLabel(k+'-01');
+    return U.fmtDate(k);
+  });
+
+  charts['ie'] = new Chart(document.getElementById('ieChart'), {
+    type: 'bar',
+    data: { labels: ieLabels.length ? ieLabels : ['No data'],
+      datasets: [
+        { label:'Income',  data: ieKeys.map(k=>ieMap[k].inc), backgroundColor:'rgba(52,199,89,.75)', borderRadius:5, borderSkipped:false },
+        { label:'Expense', data: ieKeys.map(k=>ieMap[k].exp), backgroundColor:'rgba(255,59,48,.70)', borderRadius:5, borderSkipped:false },
+      ]},
+    options: chartOpts()
+  });
+
+  // Savings line
+  let running = 0;
+  const savData = ieKeys.map(k => { running += ieMap[k].inc - ieMap[k].exp; return running; });
+  charts['sav'] = new Chart(document.getElementById('savingsChart'), {
+    type: 'line',
+    data: { labels: ieLabels.length ? ieLabels : ['No data'],
+      datasets: [{
+        label:'Cumulative Savings', data: savData,
+        borderColor:'#007aff', backgroundColor:'rgba(0,122,255,.08)',
+        fill:true, tension:.4, pointRadius:3, pointBackgroundColor:'#007aff'
+      }]},
+    options: chartOpts()
+  });
+
+  // Expense doughnut
+  const expLabels = Object.keys(expCats), expVals = expLabels.map(k=>expCats[k]);
+  if (expLabels.length) {
+    charts['cat'] = new Chart(document.getElementById('catChart'), {
+      type:'doughnut',
+      data: { labels:expLabels, datasets:[{ data:expVals, backgroundColor:COLORS, borderWidth:0, hoverOffset:4 }]},
+      options: doughnutOpts()
+    });
+  } else {
+    document.getElementById('catChart').parentElement.innerHTML = '<div class="empty"><p>No expense data</p></div>';
+  }
+
+  // Income doughnut
+  const incLabels = Object.keys(incCats), incVals = incLabels.map(k=>incCats[k]);
+  if (incLabels.length) {
+    charts['inccat'] = new Chart(document.getElementById('incCatChart'), {
+      type:'doughnut',
+      data: { labels:incLabels, datasets:[{ data:incVals, backgroundColor:COLORS.slice().reverse(), borderWidth:0, hoverOffset:4 }]},
+      options: doughnutOpts()
+    });
+  } else {
+    document.getElementById('incCatChart').parentElement.innerHTML = '<div class="empty"><p>No income data</p></div>';
+  }
+}
+
+function renderTables(expRows, incCats) {
+  // Top 10 expenses
+  const topExp = [...expRows].sort((a,b) => +b.amount - +a.amount).slice(0,10);
+  document.getElementById('topExpTable').innerHTML = topExp.length ? `
+    <table><thead><tr><th>Date</th><th>Category</th><th>Description</th><th class="td-right">Amount</th></tr></thead>
+    <tbody>${topExp.map(r=>`
+      <tr><td>${U.fmtDate(r.date)}</td>
+      <td><span class="badge badge-red">${r.category}</span></td>
+      <td>${r.description||'—'}</td>
+      <td class="td-right" style="font-weight:600;color:var(--red)">${U.inr(r.amount)}</td></tr>`).join('')}
+    </tbody></table>`
+    : '<div class="empty"><p>No expenses</p></div>';
+
+  // Income breakdown by category
+  const incEntries = Object.entries(incCats).sort((a,b)=>b[1]-a[1]);
+  document.getElementById('incBreakTable').innerHTML = incEntries.length ? `
+    <table><thead><tr><th>Category</th><th class="td-right">Amount</th></tr></thead>
+    <tbody>${incEntries.map(([cat,amt])=>`
+      <tr><td><span class="badge badge-green">${cat}</span></td>
+      <td class="td-right" style="font-weight:600;color:var(--green)">${U.inr(amt)}</td></tr>`).join('')}
+    </tbody></table>`
+    : '<div class="empty"><p>No income</p></div>';
+}
+
+function chartOpts() {
+  return {
+    responsive:true, maintainAspectRatio:true,
+    plugins: {
+      legend: { labels:{ font:{size:11}, usePointStyle:true } },
+      tooltip: { callbacks:{ label: c => ' '+U.inr(c.raw) } }
+    },
+    scales: {
+      x: { grid:{ display:false }, ticks:{ font:{size:10}, maxRotation:45 } },
+      y: { grid:{ color:'rgba(0,0,0,.05)' }, ticks:{ font:{size:11}, callback: v => '₹'+(v>=1000?(v/1000).toFixed(0)+'k':v) } }
+    }
+  };
+}
+
+function doughnutOpts() {
+  return {
+    responsive:true, maintainAspectRatio:true, cutout:'60%',
+    plugins: {
+      legend: { position:'bottom', labels:{ font:{size:11}, padding:12, usePointStyle:true } },
+      tooltip: { callbacks:{ label: c => ' '+U.inr(c.raw) } }
+    }
+  };
+}
+
+load();
+</script>
+</body>
+</html>

@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Loans — Finance Tracker</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+</head>
+<body>
+
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px">
+  <div id="loanSummary" style="display:flex;gap:12px;flex-wrap:wrap;flex:1"></div>
+  <button class="btn btn-primary btn-sm" style="margin-left:16px" onclick="openAddLoan()">
+    <i class="fa-solid fa-plus"></i> Add Loan
+  </button>
+</div>
+
+<div class="grid-auto" id="loanGrid">
+  <div class="empty"><i class="fa-solid fa-spinner fa-spin"></i><p>Loading…</p></div>
+</div>
+
+<!-- Add/Edit Loan Modal -->
+<div class="modal-overlay" id="loanModal">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <div class="modal-title" id="loanModalTitle">Add Loan</div>
+      <button class="modal-close" onclick="U.closeModal('loanModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="lEditId">
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Loan Name *</label>
+          <input class="form-control" id="lName" placeholder="e.g. HDFC Personal Loan">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Bank</label>
+          <input class="form-control" id="lBank" placeholder="e.g. HDFC Bank">
+        </div>
+      </div>
+      <div class="form-row-3">
+        <div class="form-group">
+          <label class="form-label">Principal (₹) *</label>
+          <input type="number" class="form-control" id="lPrincipal" placeholder="1346516">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Outstanding (₹) *</label>
+          <input type="number" class="form-control" id="lOutstanding" placeholder="1319259">
+        </div>
+        <div class="form-group">
+          <label class="form-label">EMI / Month (₹) *</label>
+          <input type="number" class="form-control" id="lEmi" placeholder="25184">
+        </div>
+      </div>
+      <div class="form-row-3">
+        <div class="form-group">
+          <label class="form-label">Interest Rate (%)</label>
+          <input type="number" class="form-control" id="lRate" placeholder="10.35" step="0.01">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Tenure (months)</label>
+          <input type="number" class="form-control" id="lTenure" placeholder="72">
+        </div>
+        <div class="form-group">
+          <label class="form-label">EMIs Paid</label>
+          <input type="number" class="form-control" id="lPaid" placeholder="2">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Start Date</label>
+          <input type="date" class="form-control" id="lStart">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Next EMI Date</label>
+          <input type="date" class="form-control" id="lNextEmi">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Notes</label>
+        <input class="form-control" id="lNotes" placeholder="Any additional notes">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="U.closeModal('loanModal')">Cancel</button>
+      <button class="btn btn-primary" id="lSaveBtn" onclick="saveLoan()"><i class="fa-solid fa-check"></i> Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Mark EMI Paid Modal -->
+<div class="modal-overlay" id="emiModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Record EMI Payment</div>
+      <button class="modal-close" onclick="U.closeModal('emiModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="emiLoanId">
+      <div class="form-group">
+        <label class="form-label">Loan</label>
+        <input class="form-control" id="emiLoanName" readonly>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Payment Date *</label>
+          <input type="date" class="form-control" id="emiDate">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Amount Paid (₹) *</label>
+          <input type="number" class="form-control" id="emiAmount">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Notes</label>
+        <input class="form-control" id="emiNotes" placeholder="e.g. Auto debit">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="U.closeModal('emiModal')">Cancel</button>
+      <button class="btn btn-primary" id="emiSaveBtn" onclick="saveEmi()"><i class="fa-solid fa-check"></i> Confirm Payment</button>
+    </div>
+  </div>
+</div>
+
+<!-- Payment History Modal -->
+<div class="modal-overlay" id="histModal">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <div class="modal-title" id="histTitle">Payment History</div>
+      <button class="modal-close" onclick="U.closeModal('histModal')">✕</button>
+    </div>
+    <div class="modal-body" id="histBody"></div>
+  </div>
+</div>
+
+<script src="js/config.js"></script>
+<script src="js/utils.js"></script>
+<script src="js/nav.js"></script>
+<script>
+buildLayout('Loans');
+let loans = [];
+
+async function load() {
+  loans = await db.select('loans', 'order=created_at.asc');
+  renderSummary(); renderGrid();
+}
+
+function renderSummary() {
+  const totalOS  = loans.reduce((s,l) => s + +l.outstanding, 0);
+  const totalEmi = loans.reduce((s,l) => s + +l.emi, 0);
+  document.getElementById('loanSummary').innerHTML = `
+    <div class="card card-pad" style="min-width:140px">
+      <div style="font-size:11px;font-weight:600;color:var(--text2);margin-bottom:4px">TOTAL OUTSTANDING</div>
+      <div style="font-size:20px;font-weight:700;color:var(--red)">${U.inr(totalOS)}</div>
+    </div>
+    <div class="card card-pad" style="min-width:140px">
+      <div style="font-size:11px;font-weight:600;color:var(--text2);margin-bottom:4px">MONTHLY EMI</div>
+      <div style="font-size:20px;font-weight:700;color:var(--orange)">${U.inr(totalEmi)}</div>
+    </div>
+    <div class="card card-pad" style="min-width:140px">
+      <div style="font-size:11px;font-weight:600;color:var(--text2);margin-bottom:4px">ACTIVE LOANS</div>
+      <div style="font-size:20px;font-weight:700">${loans.length}</div>
+    </div>`;
+}
+
+function renderGrid() {
+  const el = document.getElementById('loanGrid');
+  if (!loans.length) {
+    el.innerHTML = '<div class="empty" style="grid-column:1/-1"><i class="fa-solid fa-landmark"></i><p>No loans added yet.</p></div>';
+    return;
+  }
+  el.innerHTML = loans.map(l => {
+    const paid   = +l.principal - +l.outstanding;
+    const pct    = Math.min(100, Math.round((paid / +l.principal)*100));
+    const remain = (l.tenure_months||0) - (l.emis_paid||0);
+    return `
+      <div class="loan-card">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px">
+          <div>
+            <div style="font-size:15px;font-weight:700">${l.name}</div>
+            <div style="font-size:12px;color:var(--text2);margin-top:2px">${l.bank||''}</div>
+          </div>
+          <div style="display:flex;gap:6px">
+            <button class="btn btn-ghost btn-xs btn-icon" onclick="editLoan('${l.id}')"><i class="fa-solid fa-pen"></i></button>
+            <button class="btn btn-ghost btn-xs btn-icon" onclick="deleteLoan('${l.id}')"><i class="fa-solid fa-trash"></i></button>
+          </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:16px">
+          <div>
+            <div style="font-size:10px;font-weight:600;color:var(--text2);text-transform:uppercase;margin-bottom:3px">Principal</div>
+            <div style="font-size:14px;font-weight:600">${U.inr(l.principal)}</div>
+          </div>
+          <div>
+            <div style="font-size:10px;font-weight:600;color:var(--text2);text-transform:uppercase;margin-bottom:3px">Outstanding</div>
+            <div style="font-size:14px;font-weight:600;color:var(--red)">${U.inr(l.outstanding)}</div>
+          </div>
+          <div>
+            <div style="font-size:10px;font-weight:600;color:var(--text2);text-transform:uppercase;margin-bottom:3px">EMI / Month</div>
+            <div style="font-size:14px;font-weight:600;color:var(--blue)">${U.inr(l.emi)}</div>
+          </div>
+          <div>
+            <div style="font-size:10px;font-weight:600;color:var(--text2);text-transform:uppercase;margin-bottom:3px">Rate</div>
+            <div style="font-size:14px;font-weight:600">${l.interest_rate||0}%</div>
+          </div>
+          <div>
+            <div style="font-size:10px;font-weight:600;color:var(--text2);text-transform:uppercase;margin-bottom:3px">EMIs Paid</div>
+            <div style="font-size:14px;font-weight:600">${l.emis_paid||0}/${l.tenure_months||0}</div>
+          </div>
+          <div>
+            <div style="font-size:10px;font-weight:600;color:var(--text2);text-transform:uppercase;margin-bottom:3px">Remaining</div>
+            <div style="font-size:14px;font-weight:600">${remain} EMIs</div>
+          </div>
+        </div>
+
+        <div style="margin-bottom:4px;display:flex;justify-content:space-between;font-size:11px;color:var(--text2)">
+          <span>${pct}% paid off</span>
+          <span>${U.inr(paid)} of ${U.inr(l.principal)}</span>
+        </div>
+        <div class="progress" style="height:8px">
+          <div class="progress-fill" style="width:${pct}%;background:var(--blue)"></div>
+        </div>
+
+        ${l.next_emi_date ? `
+          <div style="margin-top:12px;font-size:12px;color:var(--text2)">
+            <i class="fa-solid fa-calendar-day" style="color:var(--orange)"></i>
+            Next EMI: <strong>${U.fmtDate(l.next_emi_date)}</strong>
+          </div>` : ''}
+
+        <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">
+          <button class="btn btn-primary btn-sm" onclick="openEmiModal('${l.id}')">
+            <i class="fa-solid fa-check"></i> Mark EMI Paid
+          </button>
+          <button class="btn btn-ghost btn-sm" onclick="showHistory('${l.id}')">
+            <i class="fa-solid fa-clock-rotate-left"></i> History
+          </button>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+// ── Add/Edit Loan ────────────────────────────────────────────────────────────
+function openAddLoan() {
+  document.getElementById('lEditId').value = '';
+  document.getElementById('loanModalTitle').textContent = 'Add Loan';
+  ['lName','lBank','lPrincipal','lOutstanding','lEmi','lRate','lTenure','lPaid','lNotes'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('lStart').value = U.today();
+  document.getElementById('lNextEmi').value = U.today();
+  U.openModal('loanModal');
+}
+
+function editLoan(id) {
+  const l = loans.find(x => x.id === id); if (!l) return;
+  document.getElementById('lEditId').value = l.id;
+  document.getElementById('loanModalTitle').textContent = 'Edit Loan';
+  document.getElementById('lName').value        = l.name;
+  document.getElementById('lBank').value        = l.bank||'';
+  document.getElementById('lPrincipal').value   = l.principal;
+  document.getElementById('lOutstanding').value = l.outstanding;
+  document.getElementById('lEmi').value         = l.emi;
+  document.getElementById('lRate').value        = l.interest_rate||'';
+  document.getElementById('lTenure').value      = l.tenure_months||'';
+  document.getElementById('lPaid').value        = l.emis_paid||0;
+  document.getElementById('lStart').value       = U.isoDate(l.start_date);
+  document.getElementById('lNextEmi').value     = U.isoDate(l.next_emi_date);
+  document.getElementById('lNotes').value       = l.notes||'';
+  U.openModal('loanModal');
+}
+
+async function saveLoan() {
+  const id   = document.getElementById('lEditId').value;
+  const name = document.getElementById('lName').value.trim();
+  const principal   = parseFloat(document.getElementById('lPrincipal').value);
+  const outstanding = parseFloat(document.getElementById('lOutstanding').value);
+  const emi  = parseFloat(document.getElementById('lEmi').value);
+  if (!name || isNaN(principal) || isNaN(emi)) { U.toast('Name, principal & EMI are required','error'); return; }
+  const payload = {
+    name, bank: document.getElementById('lBank').value||null,
+    principal, outstanding: isNaN(outstanding)?principal:outstanding, emi,
+    interest_rate: parseFloat(document.getElementById('lRate').value)||null,
+    tenure_months: parseInt(document.getElementById('lTenure').value)||null,
+    emis_paid: parseInt(document.getElementById('lPaid').value)||0,
+    start_date: document.getElementById('lStart').value||null,
+    next_emi_date: document.getElementById('lNextEmi').value||null,
+    notes: document.getElementById('lNotes').value||null,
+  };
+  const btn = document.getElementById('lSaveBtn');
+  U.loading(btn, true);
+  try {
+    if (id) await db.update('loans', id, payload);
+    else    await db.insert('loans', payload);
+    U.closeModal('loanModal'); U.toast(id?'Loan updated!':'Loan added!'); await load();
+  } finally { U.loading(btn, false); }
+}
+
+async function deleteLoan(id) {
+  if (!await U.confirm('Delete this loan and all its payment history?')) return;
+  await db.delete('loans', id); U.toast('Loan deleted','warning'); await load();
+}
+
+// ── EMI Payment ──────────────────────────────────────────────────────────────
+function openEmiModal(id) {
+  const l = loans.find(x => x.id === id); if (!l) return;
+  document.getElementById('emiLoanId').value   = l.id;
+  document.getElementById('emiLoanName').value = l.name;
+  document.getElementById('emiAmount').value   = l.emi;
+  document.getElementById('emiDate').value     = U.today();
+  document.getElementById('emiNotes').value    = '';
+  U.openModal('emiModal');
+}
+
+async function saveEmi() {
+  const loanId = document.getElementById('emiLoanId').value;
+  const date   = document.getElementById('emiDate').value;
+  const amount = parseFloat(document.getElementById('emiAmount').value);
+  if (!date || isNaN(amount)) { U.toast('Date and amount required','error'); return; }
+  const btn = document.getElementById('emiSaveBtn');
+  U.loading(btn, true);
+  try {
+    // Insert payment record
+    await db.insert('loan_payments', { loan_id:loanId, date, amount, notes: document.getElementById('emiNotes').value||null });
+    // Update loan: reduce outstanding, increment emis_paid, advance next_emi_date
+    const l = loans.find(x => x.id === loanId);
+    const r = +l.interest_rate/100/12;
+    const principalPortion = amount - (+l.outstanding * r);
+    const newOS = Math.max(0, +l.outstanding - Math.max(0, principalPortion));
+    const nextEmi = new Date(l.next_emi_date||date);
+    nextEmi.setMonth(nextEmi.getMonth()+1);
+    await db.update('loans', loanId, {
+      outstanding: Math.round(newOS*100)/100,
+      emis_paid: (+l.emis_paid||0)+1,
+      next_emi_date: nextEmi.toISOString().split('T')[0]
+    });
+    // Also add to expenses for tracking
+    await db.insert('expenses', { date, amount, category:'Loan EMI', description: l.name+' EMI', notes: document.getElementById('emiNotes').value||null });
+    U.closeModal('emiModal'); U.toast('EMI payment recorded!'); await load();
+  } finally { U.loading(btn, false); }
+}
+
+// ── History ──────────────────────────────────────────────────────────────────
+async function showHistory(loanId) {
+  const l = loans.find(x => x.id === loanId);
+  const payments = await db.select('loan_payments', `loan_id=eq.${loanId}&order=date.desc`);
+  document.getElementById('histTitle').textContent = `${l.name} — Payment History`;
+  if (!payments.length) {
+    document.getElementById('histBody').innerHTML = '<div class="empty"><p>No payments recorded yet.</p></div>';
+  } else {
+    document.getElementById('histBody').innerHTML = `
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Date</th><th class="td-right">Amount</th><th>Notes</th></tr></thead>
+          <tbody>${payments.map(p=>`
+            <tr><td>${U.fmtDate(p.date)}</td>
+            <td class="td-right" style="font-weight:600;color:var(--green)">${U.inr(p.amount)}</td>
+            <td class="td-muted">${p.notes||'—'}</td></tr>`).join('')}
+          </tbody>
+        </table>
+      </div>
+      <div style="margin-top:12px;font-size:13px;color:var(--text2)">
+        Total paid: <strong style="color:var(--green)">${U.inr(payments.reduce((s,p)=>s+ +p.amount,0))}</strong>
+        over ${payments.length} payment${payments.length!==1?'s':''}
+      </div>`;
+  }
+  U.openModal('histModal');
+}
+
+load();
+</script>
+</body>
+</html>

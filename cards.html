@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Credit Cards — Finance Tracker</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+</head>
+<body>
+
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px">
+  <div id="cardSummary" style="display:flex;gap:12px;flex-wrap:wrap;flex:1"></div>
+  <button class="btn btn-primary btn-sm" style="margin-left:16px" onclick="openAddCard()">
+    <i class="fa-solid fa-plus"></i> Add Card
+  </button>
+</div>
+
+<div class="grid-auto" id="cardGrid">
+  <div class="empty"><i class="fa-solid fa-spinner fa-spin"></i><p>Loading…</p></div>
+</div>
+
+<!-- Add/Edit Card Modal -->
+<div class="modal-overlay" id="cardModal">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <div class="modal-title" id="cardModalTitle">Add Credit Card</div>
+      <button class="modal-close" onclick="U.closeModal('cardModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="cEditId">
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Card Name *</label>
+          <input class="form-control" id="cName" placeholder="e.g. HDFC Regalia">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Bank</label>
+          <input class="form-control" id="cBank" placeholder="e.g. HDFC">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Credit Limit (₹) *</label>
+          <input type="number" class="form-control" id="cLimit" placeholder="100000">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Current Outstanding (₹)</label>
+          <input type="number" class="form-control" id="cOutstanding" placeholder="0">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Statement Date (day)</label>
+          <input type="number" class="form-control" id="cStmt" placeholder="15" min="1" max="31">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Due Date (day of month)</label>
+          <input type="number" class="form-control" id="cDue" placeholder="5" min="1" max="31">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Minimum Due (₹)</label>
+          <input type="number" class="form-control" id="cMinDue" placeholder="500">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Card Color</label>
+          <select class="form-control form-select" id="cColor">
+            <option value="#007aff">Blue</option>
+            <option value="#34c759">Green</option>
+            <option value="#ff3b30">Red</option>
+            <option value="#af52de">Purple</option>
+            <option value="#ff9500">Orange</option>
+            <option value="#1d1d1f">Black</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Notes</label>
+        <input class="form-control" id="cNotes" placeholder="Any notes">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="U.closeModal('cardModal')">Cancel</button>
+      <button class="btn btn-primary" id="cSaveBtn" onclick="saveCard()"><i class="fa-solid fa-check"></i> Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Payment Modal -->
+<div class="modal-overlay" id="payModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Record Payment</div>
+      <button class="modal-close" onclick="U.closeModal('payModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="pCardId">
+      <div class="form-group">
+        <label class="form-label">Card</label>
+        <input class="form-control" id="pCardName" readonly>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Date *</label>
+          <input type="date" class="form-control" id="pDate">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Amount (₹) *</label>
+          <input type="number" class="form-control" id="pAmount">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Notes</label>
+        <input class="form-control" id="pNotes" placeholder="Full payment / Minimum due / etc.">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="U.closeModal('payModal')">Cancel</button>
+      <button class="btn btn-primary" id="pSaveBtn" onclick="savePayment()"><i class="fa-solid fa-check"></i> Confirm</button>
+    </div>
+  </div>
+</div>
+
+<!-- History Modal -->
+<div class="modal-overlay" id="histModal">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <div class="modal-title" id="histTitle">Payment History</div>
+      <button class="modal-close" onclick="U.closeModal('histModal')">✕</button>
+    </div>
+    <div class="modal-body" id="histBody"></div>
+  </div>
+</div>
+
+<script src="js/config.js"></script>
+<script src="js/utils.js"></script>
+<script src="js/nav.js"></script>
+<script>
+buildLayout('Credit Cards');
+let cards = [];
+
+async function load() {
+  cards = await db.select('credit_cards', 'order=created_at.asc');
+  renderSummary(); renderGrid();
+}
+
+function renderSummary() {
+  const totalOS    = cards.reduce((s,c) => s + +c.outstanding, 0);
+  const totalLimit = cards.reduce((s,c) => s + +c.credit_limit, 0);
+  const utilPct = totalLimit ? Math.round((totalOS/totalLimit)*100) : 0;
+  document.getElementById('cardSummary').innerHTML = `
+    <div class="card card-pad" style="min-width:140px">
+      <div style="font-size:11px;font-weight:600;color:var(--text2);margin-bottom:4px">TOTAL OUTSTANDING</div>
+      <div style="font-size:20px;font-weight:700;color:var(--red)">${U.inr(totalOS)}</div>
+    </div>
+    <div class="card card-pad" style="min-width:140px">
+      <div style="font-size:11px;font-weight:600;color:var(--text2);margin-bottom:4px">TOTAL CREDIT LIMIT</div>
+      <div style="font-size:20px;font-weight:700">${U.inr(totalLimit)}</div>
+    </div>
+    <div class="card card-pad" style="min-width:140px">
+      <div style="font-size:11px;font-weight:600;color:var(--text2);margin-bottom:4px">UTILIZATION</div>
+      <div style="font-size:20px;font-weight:700;color:${utilPct>70?'var(--red)':utilPct>40?'var(--orange)':'var(--green)'}">${utilPct}%</div>
+    </div>`;
+}
+
+function renderGrid() {
+  const el = document.getElementById('cardGrid');
+  if (!cards.length) {
+    el.innerHTML = '<div class="empty" style="grid-column:1/-1"><i class="fa-solid fa-credit-card"></i><p>No credit cards added yet.</p></div>';
+    return;
+  }
+  el.innerHTML = cards.map(c => {
+    const limit   = +c.credit_limit;
+    const os      = +c.outstanding;
+    const avail   = Math.max(0, limit - os);
+    const utilPct = limit ? Math.min(100, Math.round((os/limit)*100)) : 0;
+    const utilColor = utilPct > 70 ? 'var(--red)' : utilPct > 40 ? 'var(--orange)' : 'var(--green)';
+    const color = c.notes?.startsWith('#') ? c.notes : (c.notes||'#007aff'); // using notes field for color hack
+
+    // Get stored color from a dedicated field or default
+    const bgColor = c.notes && /^#[0-9a-f]{6}/i.test(c.notes) ? c.notes : '#007aff';
+
+    return `
+      <div class="card" style="overflow:hidden">
+        <!-- Visual card -->
+        <div class="cc-visual" style="background:linear-gradient(135deg,${bgColor}cc,${bgColor})">
+          <div style="font-size:13px;font-weight:600;opacity:.85">${c.name}</div>
+          <div>
+            <div style="font-size:11px;opacity:.6;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">Credit Limit</div>
+            <div style="font-size:22px;font-weight:700">${U.inr(limit)}</div>
+          </div>
+          <div style="display:flex;justify-content:space-between">
+            <div><div style="font-size:10px;opacity:.6">Outstanding</div><div style="font-size:14px;font-weight:600">${U.inr(os)}</div></div>
+            <div><div style="font-size:10px;opacity:.6">Available</div><div style="font-size:14px;font-weight:600">${U.inr(avail)}</div></div>
+            <div><div style="font-size:10px;opacity:.6">Bank</div><div style="font-size:14px;font-weight:600">${c.bank||'—'}</div></div>
+          </div>
+        </div>
+
+        <div style="padding:16px">
+          <!-- Utilization -->
+          <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text2);margin-bottom:4px">
+            <span>Utilization: <strong style="color:${utilColor}">${utilPct}%</strong></span>
+            <span>Min Due: ${U.inr(c.min_due||0)}</span>
+          </div>
+          <div class="progress"><div class="progress-fill" style="width:${utilPct}%;background:${utilColor}"></div></div>
+
+          ${(c.statement_day||c.due_day) ? `
+            <div style="display:flex;gap:16px;margin-top:12px;font-size:12px;color:var(--text2)">
+              ${c.statement_day ? `<span><i class="fa-solid fa-file-invoice" style="color:var(--blue)"></i> Statement: ${c.statement_day}th</span>` : ''}
+              ${c.due_day ? `<span><i class="fa-solid fa-calendar-check" style="color:var(--red)"></i> Due: ${c.due_day}th</span>` : ''}
+            </div>` : ''}
+
+          <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">
+            <button class="btn btn-primary btn-sm" onclick="openPayModal('${c.id}')">
+              <i class="fa-solid fa-money-bill-wave"></i> Pay
+            </button>
+            <button class="btn btn-ghost btn-sm" onclick="showHistory('${c.id}')">
+              <i class="fa-solid fa-clock-rotate-left"></i> History
+            </button>
+            <button class="btn btn-ghost btn-sm btn-icon" onclick="editCard('${c.id}')"><i class="fa-solid fa-pen"></i></button>
+            <button class="btn btn-ghost btn-sm btn-icon" onclick="deleteCard('${c.id}')"><i class="fa-solid fa-trash"></i></button>
+          </div>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function openAddCard() {
+  document.getElementById('cEditId').value = '';
+  document.getElementById('cardModalTitle').textContent = 'Add Credit Card';
+  ['cName','cBank','cLimit','cOutstanding','cStmt','cDue','cMinDue','cNotes'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('cColor').value = '#007aff';
+  U.openModal('cardModal');
+}
+
+function editCard(id) {
+  const c = cards.find(x => x.id === id); if (!c) return;
+  document.getElementById('cEditId').value = c.id;
+  document.getElementById('cardModalTitle').textContent = 'Edit Card';
+  document.getElementById('cName').value        = c.name;
+  document.getElementById('cBank').value        = c.bank||'';
+  document.getElementById('cLimit').value       = c.credit_limit;
+  document.getElementById('cOutstanding').value = c.outstanding;
+  document.getElementById('cStmt').value        = c.statement_day||'';
+  document.getElementById('cDue').value         = c.due_day||'';
+  document.getElementById('cMinDue').value      = c.min_due||'';
+  document.getElementById('cNotes').value       = c.notes||'';
+  U.openModal('cardModal');
+}
+
+async function saveCard() {
+  const id   = document.getElementById('cEditId').value;
+  const name = document.getElementById('cName').value.trim();
+  const limit = parseFloat(document.getElementById('cLimit').value);
+  if (!name || isNaN(limit)) { U.toast('Name and limit required','error'); return; }
+  const color = document.getElementById('cColor').value;
+  const payload = {
+    name, bank: document.getElementById('cBank').value||null, credit_limit: limit,
+    outstanding: parseFloat(document.getElementById('cOutstanding').value)||0,
+    statement_day: parseInt(document.getElementById('cStmt').value)||null,
+    due_day: parseInt(document.getElementById('cDue').value)||null,
+    min_due: parseFloat(document.getElementById('cMinDue').value)||0,
+    notes: color, // storing color in notes field
+  };
+  const btn = document.getElementById('cSaveBtn');
+  U.loading(btn, true);
+  try {
+    if (id) await db.update('credit_cards', id, payload);
+    else    await db.insert('credit_cards', payload);
+    U.closeModal('cardModal'); U.toast(id?'Card updated!':'Card added!'); await load();
+  } finally { U.loading(btn, false); }
+}
+
+async function deleteCard(id) {
+  if (!await U.confirm('Delete this card and all payment history?')) return;
+  await db.delete('credit_cards', id); U.toast('Card deleted','warning'); await load();
+}
+
+function openPayModal(id) {
+  const c = cards.find(x => x.id === id); if (!c) return;
+  document.getElementById('pCardId').value   = c.id;
+  document.getElementById('pCardName').value = c.name;
+  document.getElementById('pAmount').value   = c.outstanding||'';
+  document.getElementById('pDate').value     = U.today();
+  document.getElementById('pNotes').value    = '';
+  U.openModal('payModal');
+}
+
+async function savePayment() {
+  const cardId = document.getElementById('pCardId').value;
+  const date   = document.getElementById('pDate').value;
+  const amount = parseFloat(document.getElementById('pAmount').value);
+  if (!date || isNaN(amount)) { U.toast('Date and amount required','error'); return; }
+  const btn = document.getElementById('pSaveBtn');
+  U.loading(btn, true);
+  try {
+    await db.insert('card_payments', { card_id:cardId, date, amount, notes: document.getElementById('pNotes').value||null });
+    const c = cards.find(x => x.id === cardId);
+    await db.update('credit_cards', cardId, { outstanding: Math.max(0, +c.outstanding - amount) });
+    await db.insert('expenses', { date, amount, category:'Credit Card', description: c.name+' payment', notes: document.getElementById('pNotes').value||null });
+    U.closeModal('payModal'); U.toast('Payment recorded!'); await load();
+  } finally { U.loading(btn, false); }
+}
+
+async function showHistory(cardId) {
+  const c = cards.find(x => x.id === cardId);
+  const payments = await db.select('card_payments', `card_id=eq.${cardId}&order=date.desc`);
+  document.getElementById('histTitle').textContent = `${c.name} — Payment History`;
+  document.getElementById('histBody').innerHTML = payments.length
+    ? `<div class="table-wrap">
+        <table><thead><tr><th>Date</th><th class="td-right">Amount</th><th>Notes</th></tr></thead>
+        <tbody>${payments.map(p=>`<tr><td>${U.fmtDate(p.date)}</td><td class="td-right" style="font-weight:600;color:var(--green)">${U.inr(p.amount)}</td><td class="td-muted">${p.notes||'—'}</td></tr>`).join('')}</tbody></table>
+       </div>
+       <div style="margin-top:12px;font-size:13px;color:var(--text2)">Total paid: <strong>${U.inr(payments.reduce((s,p)=>s+ +p.amount,0))}</strong></div>`
+    : '<div class="empty"><p>No payments recorded.</p></div>';
+  U.openModal('histModal');
+}
+
+load();
+</script>
+</body>
+</html>
