@@ -7,6 +7,7 @@
   <link rel="stylesheet" href="css/style.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
 
@@ -76,6 +77,8 @@
 <script src="js/utils.js"></script>
 <script src="js/nav.js"></script>
 <script>
+(async () => {
+if (!(await Auth.requireSession())) return;
 buildLayout('Dashboard');
 
 let ieChartInst, catChartInst;
@@ -219,6 +222,7 @@ document.querySelectorAll('[data-range]').forEach(btn => {
 });
 
 loadDashboard();
+})();
 </script>
 </body>
 </html>

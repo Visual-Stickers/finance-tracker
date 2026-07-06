@@ -26,6 +26,7 @@
     @media(max-width:1000px){ .report-kpi{ grid-template-columns:repeat(3,1fr); } }
     @media(max-width:600px) { .report-kpi{ grid-template-columns:repeat(2,1fr); } }
   </style>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
 
@@ -89,6 +90,8 @@
 <script src="js/utils.js"></script>
 <script src="js/nav.js"></script>
 <script>
+(async () => {
+if (!(await Auth.requireSession())) return;
 buildLayout('Reports');
 
 let activeRange = 'monthly';
@@ -288,6 +291,7 @@ function doughnutOpts() {
 }
 
 load();
+})();
 </script>
 </body>
 </html>

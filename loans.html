@@ -6,6 +6,7 @@
   <title>Loans — Finance Tracker</title>
   <link rel="stylesheet" href="css/style.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
 
@@ -139,6 +140,8 @@
 <script src="js/utils.js"></script>
 <script src="js/nav.js"></script>
 <script>
+(async () => {
+if (!(await Auth.requireSession())) return;
 buildLayout('Loans');
 let loans = [];
 
@@ -367,6 +370,7 @@ async function showHistory(loanId) {
 }
 
 load();
+})();
 </script>
 </body>
 </html>
