@@ -114,21 +114,6 @@
 let rows = [], parsedBulk = [];
 let dateFrom = U.monthStart(), dateTo = U.monthEnd();
 
-// ── Date range ───────────────────────────────────────────────────────────────
-document.querySelectorAll('[data-range]').forEach(btn => {
-  btn.addEventListener('click', () => {
-    document.querySelectorAll('[data-range]').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    const r = btn.dataset.range;
-    const now = new Date();
-    document.getElementById('dateFrom').style.display = r === 'custom' ? '' : 'none';
-    document.getElementById('dateTo').style.display   = r === 'custom' ? '' : 'none';
-    if (r === 'month')  { dateFrom = U.monthStart(now); dateTo = U.monthEnd(now); load(); }
-    if (r === 'year')   { dateFrom = U.yearStart(now);  dateTo = U.yearEnd(now);  load(); }
-  });
-});
-document.getElementById('dateFrom').addEventListener('change', e => { dateFrom = e.target.value; load(); });
-document.getElementById('dateTo').addEventListener('change',   e => { dateTo   = e.target.value; load(); });
 
 // ── Load ─────────────────────────────────────────────────────────────────────
 async function load() {
@@ -300,6 +285,21 @@ async function saveBulk() {
 (async () => {
 if (!(await Auth.requireSession())) return;
 buildLayout('Income');
+// ── Date range ───────────────────────────────────────────────────────────────
+document.querySelectorAll('[data-range]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('[data-range]').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    const r = btn.dataset.range;
+    const now = new Date();
+    document.getElementById('dateFrom').style.display = r === 'custom' ? '' : 'none';
+    document.getElementById('dateTo').style.display   = r === 'custom' ? '' : 'none';
+    if (r === 'month')  { dateFrom = U.monthStart(now); dateTo = U.monthEnd(now); load(); }
+    if (r === 'year')   { dateFrom = U.yearStart(now);  dateTo = U.yearEnd(now);  load(); }
+  });
+});
+document.getElementById('dateFrom').addEventListener('change', e => { dateFrom = e.target.value; load(); });
+document.getElementById('dateTo').addEventListener('change',   e => { dateTo   = e.target.value; load(); });
 load();
 })();
 </script>

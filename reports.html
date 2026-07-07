@@ -106,28 +106,6 @@ const now = new Date();
 dateFrom = U.monthStart(now);
 dateTo   = U.monthEnd(now);
 
-document.querySelectorAll('[data-range]').forEach(btn => {
-  btn.addEventListener('click', () => {
-    document.querySelectorAll('[data-range]').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    activeRange = btn.dataset.range;
-    const cr = document.getElementById('customRange');
-    cr.style.display = activeRange === 'custom' ? 'flex' : 'none';
-    if (activeRange !== 'custom') {
-      applyRange(activeRange); load();
-    }
-  });
-});
-
-function applyRange(range) {
-  const now = new Date();
-  if (range === 'daily')   { dateFrom = U.today(); dateTo = U.today(); }
-  if (range === 'monthly') { dateFrom = U.monthStart(now); dateTo = U.monthEnd(now); }
-  if (range === 'yearly')  { dateFrom = U.yearStart(now);  dateTo = U.yearEnd(now); }
-}
-
-document.getElementById('dateFrom').addEventListener('change', e => dateFrom = e.target.value);
-document.getElementById('dateTo').addEventListener('change',   e => dateTo   = e.target.value);
 
 async function load() {
   if (activeRange !== 'custom') applyRange(activeRange);
@@ -296,6 +274,28 @@ function doughnutOpts() {
 (async () => {
 if (!(await Auth.requireSession())) return;
 buildLayout('Reports');
+document.querySelectorAll('[data-range]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('[data-range]').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    activeRange = btn.dataset.range;
+    const cr = document.getElementById('customRange');
+    cr.style.display = activeRange === 'custom' ? 'flex' : 'none';
+    if (activeRange !== 'custom') {
+      applyRange(activeRange); load();
+    }
+  });
+});
+
+function applyRange(range) {
+  const now = new Date();
+  if (range === 'daily')   { dateFrom = U.today(); dateTo = U.today(); }
+  if (range === 'monthly') { dateFrom = U.monthStart(now); dateTo = U.monthEnd(now); }
+  if (range === 'yearly')  { dateFrom = U.yearStart(now);  dateTo = U.yearEnd(now); }
+}
+
+document.getElementById('dateFrom').addEventListener('change', e => dateFrom = e.target.value);
+document.getElementById('dateTo').addEventListener('change',   e => dateTo   = e.target.value);
 load();
 })();
 </script>
