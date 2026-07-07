@@ -111,10 +111,6 @@
 <script src="js/utils.js"></script>
 <script src="js/nav.js"></script>
 <script>
-(async () => {
-if (!(await Auth.requireSession())) return;
-buildLayout('Income');
-
 let rows = [], parsedBulk = [];
 let dateFrom = U.monthStart(), dateTo = U.monthEnd();
 
@@ -301,6 +297,9 @@ async function saveBulk() {
   } finally { U.loading(btn, false); }
 }
 
+(async () => {
+if (!(await Auth.requireSession())) return;
+buildLayout('Income');
 load();
 })();
 </script>

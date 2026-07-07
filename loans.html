@@ -141,9 +141,6 @@
 <script src="js/utils.js"></script>
 <script src="js/nav.js"></script>
 <script>
-(async () => {
-if (!(await Auth.requireSession())) return;
-buildLayout('Loans');
 let loans = [];
 
 async function load() {
@@ -370,6 +367,9 @@ async function showHistory(loanId) {
   U.openModal('histModal');
 }
 
+(async () => {
+if (!(await Auth.requireSession())) return;
+buildLayout('Loans');
 load();
 })();
 </script>

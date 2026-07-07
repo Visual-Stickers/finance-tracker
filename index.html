@@ -78,10 +78,6 @@
 <script src="js/utils.js"></script>
 <script src="js/nav.js"></script>
 <script>
-(async () => {
-if (!(await Auth.requireSession())) return;
-buildLayout('Dashboard');
-
 // Chart.js draws to canvas, so it can't read CSS variables on its own —
 // pull the current theme's actual colors once so charts aren't unreadable
 // black-on-black in dark mode.
@@ -222,6 +218,9 @@ function chartOpts() {
   };
 }
 
+(async () => {
+if (!(await Auth.requireSession())) return;
+buildLayout('Dashboard');
 document.querySelectorAll('[data-range]').forEach(btn => {
   btn.addEventListener('click', () => {
     document.querySelectorAll('[data-range]').forEach(b => b.classList.remove('active'));

@@ -91,9 +91,6 @@
 <script src="js/utils.js"></script>
 <script src="js/nav.js"></script>
 <script>
-(async () => {
-if (!(await Auth.requireSession())) return;
-buildLayout('Reports');
 
 const chartTextColor = getComputedStyle(document.documentElement).getPropertyValue('--text2').trim();
 const chartGridColor = getComputedStyle(document.documentElement).getPropertyValue('--border').trim();
@@ -296,6 +293,9 @@ function doughnutOpts() {
   };
 }
 
+(async () => {
+if (!(await Auth.requireSession())) return;
+buildLayout('Reports');
 load();
 })();
 </script>
