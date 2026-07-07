@@ -8,6 +8,8 @@
   <link rel="stylesheet" href="css/style.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
   <style>
     .report-kpi {
       display: grid;
@@ -45,7 +47,10 @@
     <input type="date" class="form-control" id="dateTo">
     <button class="btn btn-primary btn-sm" onclick="load()">Apply</button>
   </div>
-  <div id="rangeLabel" style="font-size:13px;font-weight:600;color:var(--text2)"></div>
+  <div style="display:flex;align-items:center;gap:14px">
+    <div id="rangeLabel" style="font-size:13px;font-weight:600;color:var(--text2)"></div>
+    <button class="btn btn-primary btn-sm" id="exportPdfBtn"><i class="fa-solid fa-file-pdf"></i>&nbsp; Export PDF</button>
+  </div>
 </div>
 
 <!-- KPIs -->
@@ -100,12 +105,23 @@ Chart.defaults.borderColor = chartGridColor;
 let activeRange = 'monthly';
 let charts = {};
 let dateFrom, dateTo;
+let lastReport = null; // holds the most recently loaded report data, used by PDF export
 
 // Set default dates
 const now = new Date();
 dateFrom = U.monthStart(now);
 dateTo   = U.monthEnd(now);
 
+// NOTE: this must live at top level (not nested inside the bottom IIFE) —
+// load() calls it directly, and a function declared inside another function
+// is only visible inside that function, which was the cause of the
+// "applyRange is not defined" error.
+function applyRange(range) {
+  const now = new Date();
+  if (range === 'daily')   { dateFrom = U.today(); dateTo = U.today(); }
+  if (range === 'monthly') { dateFrom = U.monthStart(now); dateTo = U.monthEnd(now); }
+  if (range === 'yearly')  { dateFrom = U.yearStart(now);  dateTo = U.yearEnd(now); }
+}
 
 async function load() {
   if (activeRange !== 'custom') applyRange(activeRange);
@@ -140,6 +156,15 @@ async function load() {
 
   renderCharts(incRows, expRows, incCats, expCats, totalInc, totalExp, savings);
   renderTables(expRows, incCats);
+
+  // Keep everything this render used, so Export PDF always reflects exactly
+  // what's on screen (same range, same charts, same underlying rows).
+  lastReport = {
+    label, dateFrom, dateTo,
+    incRows, expRows, incCats, expCats,
+    totalInc, totalExp, savings, savingsPct,
+    loanOS, ccOS, totalDebt: loanOS + ccOS
+  };
 }
 
 function renderKPIs(inc, exp, sav, savPct, debt) {
@@ -271,9 +296,194 @@ function doughnutOpts() {
   };
 }
 
+// ─── PDF Export ────────────────────────────────────────────────────────────
+// Builds a colourful, professional PDF using the SAME chart images that are
+// on screen (Chart.js canvases exported as PNG) plus the underlying data
+// rows/tables behind them, using jsPDF + jspdf-autotable.
+async function exportToPDF() {
+  if (!lastReport) { U.toast('Report is still loading, try again in a moment', 'error'); return; }
+  const btn = document.getElementById('exportPdfBtn');
+  U.loading(btn, true);
+  try {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ orientation: 'p', unit: 'pt', format: 'a4' });
+    const pageW = doc.internal.pageSize.getWidth();
+    const pageH = doc.internal.pageSize.getHeight();
+    const margin = 32;
+    const BLUE = [0,122,255], GREEN = [52,199,89], RED = [255,59,48], ORANGE = [255,149,0], DARK = [30,32,36], GREY = [110,116,128];
+
+    const addFooter = () => {
+      const n = doc.internal.getNumberOfPages();
+      for (let i = 1; i <= n; i++) {
+        doc.setPage(i);
+        doc.setDrawColor(230,230,235);
+        doc.line(margin, pageH-34, pageW-margin, pageH-34);
+        doc.setFontSize(8); doc.setTextColor(...GREY); doc.setFont(undefined,'normal');
+        doc.text('Finance Tracker — Financial Report', margin, pageH-22);
+        doc.text(`Page ${i} of ${n}`, pageW-margin, pageH-22, { align: 'right' });
+      }
+    };
+
+    // ── Header banner ──────────────────────────────────────────────────────
+    doc.setFillColor(...BLUE);
+    doc.rect(0, 0, pageW, 92, 'F');
+    doc.setFillColor(0,90,200);
+    doc.rect(0, 84, pageW, 8, 'F');
+    doc.setTextColor(255,255,255);
+    doc.setFont(undefined, 'bold'); doc.setFontSize(22);
+    doc.text('Finance Tracker', margin, 40);
+    doc.setFontSize(12); doc.setFont(undefined, 'normal');
+    doc.text('Financial Report', margin, 60);
+    doc.setFontSize(9);
+    doc.text(`Period: ${lastReport.label}   |   Generated: ${U.fmtDate(U.today())}`, margin, 78);
+
+    // ── KPI cards ───────────────────────────────────────────────────────────
+    let y = 118;
+    const kpis = [
+      { label:'Total Income',  value: U.inr(lastReport.totalInc),  color: GREEN },
+      { label:'Total Expenses',value: U.inr(lastReport.totalExp),  color: RED },
+      { label:'Net Savings',   value: U.inr(lastReport.savings),   color: lastReport.savings>=0 ? GREEN : RED },
+      { label:'Savings Rate',  value: `${lastReport.savingsPct}%`, color: BLUE },
+      { label:'Total Debt',    value: U.inr(lastReport.totalDebt), color: ORANGE },
+    ];
+    const kpiGap = 10;
+    const kpiW = (pageW - margin*2 - kpiGap*(kpis.length-1)) / kpis.length;
+    kpis.forEach((k, i) => {
+      const x = margin + i*(kpiW+kpiGap);
+      doc.setFillColor(248,249,251);
+      doc.roundedRect(x, y, kpiW, 56, 4, 4, 'F');
+      doc.setFillColor(...k.color);
+      doc.roundedRect(x, y, 4, 56, 2, 2, 'F');
+      doc.setTextColor(...GREY); doc.setFontSize(7.5); doc.setFont(undefined,'bold');
+      doc.text(k.label.toUpperCase(), x+10, y+18, { maxWidth: kpiW-16 });
+      doc.setTextColor(...k.color); doc.setFontSize(12);
+      doc.text(k.value, x+10, y+38, { maxWidth: kpiW-16 });
+    });
+    y += 56 + 26;
+
+    // ── Charts (2x2 grid) — pulled straight from the live Chart.js canvases ─
+    doc.setTextColor(...DARK); doc.setFontSize(13); doc.setFont(undefined,'bold');
+    doc.text('Overview', margin, y);
+    y += 14;
+
+    const chartW = (pageW - margin*2 - 14) / 2;
+    const chartH = 150;
+    const chartDefs = [
+      { id:'ie',     title:'Income vs Expenses' },
+      { id:'sav',    title:'Net Savings Trend' },
+      { id:'cat',    title:'Expense by Category' },
+      { id:'inccat', title:'Income by Category' },
+    ];
+    chartDefs.forEach((c, i) => {
+      const col = i % 2, row = Math.floor(i/2);
+      const x = margin + col*(chartW+14);
+      const cy = y + row*(chartH+14);
+      doc.setFillColor(255,255,255);
+      doc.setDrawColor(228,230,235);
+      doc.roundedRect(x, cy, chartW, chartH, 5, 5, 'FD');
+      doc.setTextColor(...DARK); doc.setFontSize(9); doc.setFont(undefined,'bold');
+      doc.text(c.title, x+10, cy+16);
+      if (charts[c.id]) {
+        try {
+          const img = charts[c.id].toBase64Image('image/png', 1);
+          doc.addImage(img, 'PNG', x+8, cy+22, chartW-16, chartH-30, undefined, 'FAST');
+        } catch (e) {
+          doc.setFontSize(8); doc.setTextColor(...GREY);
+          doc.text('Chart unavailable', x+10, cy+50);
+        }
+      } else {
+        doc.setFontSize(8); doc.setTextColor(...GREY);
+        doc.text('No data for this period', x+10, cy+50);
+      }
+    });
+
+    // ── Underlying data tables (new page) ───────────────────────────────────
+    doc.addPage();
+    let ty = margin;
+    doc.setTextColor(...DARK); doc.setFontSize(14); doc.setFont(undefined,'bold');
+    doc.text('Underlying Data', margin, ty);
+
+    // Income breakdown by category
+    const incEntries = Object.entries(lastReport.incCats).sort((a,b)=>b[1]-a[1]);
+    doc.autoTable({
+      startY: ty + 20,
+      margin: { left: margin, right: margin },
+      head: [['Income Category', 'Amount']],
+      body: incEntries.length ? incEntries.map(([cat,amt]) => [cat, U.inr(amt)]) : [['No income recorded', '—']],
+      theme: 'grid',
+      headStyles: { fillColor: GREEN, textColor: 255, fontStyle: 'bold', fontSize: 9 },
+      bodyStyles: { fontSize: 8.5, textColor: DARK },
+      alternateRowStyles: { fillColor: [240,250,243] },
+      columnStyles: { 1: { halign: 'right', fontStyle: 'bold' } },
+    });
+
+    // Expense breakdown by category
+    const expEntries = Object.entries(lastReport.expCats).sort((a,b)=>b[1]-a[1]);
+    doc.autoTable({
+      startY: doc.lastAutoTable.finalY + 20,
+      margin: { left: margin, right: margin },
+      head: [['Expense Category', 'Amount']],
+      body: expEntries.length ? expEntries.map(([cat,amt]) => [cat, U.inr(amt)]) : [['No expenses recorded', '—']],
+      theme: 'grid',
+      headStyles: { fillColor: RED, textColor: 255, fontStyle: 'bold', fontSize: 9 },
+      bodyStyles: { fontSize: 8.5, textColor: DARK },
+      alternateRowStyles: { fillColor: [253,240,239] },
+      columnStyles: { 1: { halign: 'right', fontStyle: 'bold' } },
+    });
+
+    // Full expense transaction list for the period
+    doc.autoTable({
+      startY: doc.lastAutoTable.finalY + 26,
+      margin: { left: margin, right: margin },
+      head: [['Date', 'Category', 'Description', 'Amount']],
+      body: lastReport.expRows.length
+        ? [...lastReport.expRows].sort((a,b)=>+b.amount-+a.amount)
+            .map(r => [U.fmtDate(r.date), r.category, r.description || '—', U.inr(r.amount)])
+        : [['—','No expense transactions','—','—']],
+      theme: 'striped',
+      headStyles: { fillColor: ORANGE, textColor: 255, fontStyle: 'bold', fontSize: 9 },
+      bodyStyles: { fontSize: 8 },
+      columnStyles: { 3: { halign: 'right', fontStyle: 'bold' } },
+      didParseCell: (data) => {
+        if (data.section === 'head') return;
+        if (data.column.index === 3) data.cell.styles.textColor = RED;
+      },
+    });
+
+    // Full income transaction list for the period
+    doc.autoTable({
+      startY: doc.lastAutoTable.finalY + 26,
+      margin: { left: margin, right: margin },
+      head: [['Date', 'Category', 'Description', 'Amount']],
+      body: lastReport.incRows.length
+        ? [...lastReport.incRows].sort((a,b)=>+b.amount-+a.amount)
+            .map(r => [U.fmtDate(r.date), r.category, r.description || '—', U.inr(r.amount)])
+        : [['—','No income transactions','—','—']],
+      theme: 'striped',
+      headStyles: { fillColor: GREEN, textColor: 255, fontStyle: 'bold', fontSize: 9 },
+      bodyStyles: { fontSize: 8 },
+      columnStyles: { 3: { halign: 'right', fontStyle: 'bold' } },
+      didParseCell: (data) => {
+        if (data.section === 'head') return;
+        if (data.column.index === 3) data.cell.styles.textColor = GREEN;
+      },
+    });
+
+    addFooter();
+    doc.save(`Finance_Report_${activeRange}_${U.today()}.pdf`);
+    U.toast('PDF report downloaded');
+  } catch (err) {
+    console.error(err);
+    U.toast('Could not generate PDF', 'error');
+  } finally {
+    U.loading(btn, false);
+  }
+}
+
 (async () => {
 if (!(await Auth.requireSession())) return;
 buildLayout('Reports');
+document.getElementById('exportPdfBtn').addEventListener('click', exportToPDF);
 document.querySelectorAll('[data-range]').forEach(btn => {
   btn.addEventListener('click', () => {
     document.querySelectorAll('[data-range]').forEach(b => b.classList.remove('active'));
@@ -286,13 +496,6 @@ document.querySelectorAll('[data-range]').forEach(btn => {
     }
   });
 });
-
-function applyRange(range) {
-  const now = new Date();
-  if (range === 'daily')   { dateFrom = U.today(); dateTo = U.today(); }
-  if (range === 'monthly') { dateFrom = U.monthStart(now); dateTo = U.monthEnd(now); }
-  if (range === 'yearly')  { dateFrom = U.yearStart(now);  dateTo = U.yearEnd(now); }
-}
 
 document.getElementById('dateFrom').addEventListener('change', e => dateFrom = e.target.value);
 document.getElementById('dateTo').addEventListener('change',   e => dateTo   = e.target.value);
