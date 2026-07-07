@@ -5,6 +5,10 @@ const fmt = new Intl.NumberFormat('en-IN', { maximumFractionDigits: 0 });
 const U = {
   // Currency
   inr(v) { return '₹' + fmt.format(Math.round(+v || 0)); },
+  // Plain-text currency for jsPDF: the standard PDF fonts (helvetica etc.)
+  // don't include the ₹ glyph, so jsPDF silently falls back to an unrelated
+  // character (renders as "1"). Use "Rs." instead for anything drawn into a PDF.
+  inrPdf(v) { return 'Rs. ' + fmt.format(Math.round(+v || 0)); },
 
   // Date helpers
   today()     { return new Date().toISOString().split('T')[0]; },
