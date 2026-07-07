@@ -340,26 +340,38 @@ async function exportToPDF() {
     // ── KPI cards ───────────────────────────────────────────────────────────
     let y = 118;
     const kpis = [
-      { label:'Total Income',  value: U.inr(lastReport.totalInc),  color: GREEN },
-      { label:'Total Expenses',value: U.inr(lastReport.totalExp),  color: RED },
-      { label:'Net Savings',   value: U.inr(lastReport.savings),   color: lastReport.savings>=0 ? GREEN : RED },
+      { label:'Total Income',  value: U.inrPdf(lastReport.totalInc),  color: GREEN },
+      { label:'Total Expenses',value: U.inrPdf(lastReport.totalExp),  color: RED },
+      { label:'Net Savings',   value: U.inrPdf(lastReport.savings),   color: lastReport.savings>=0 ? GREEN : RED },
       { label:'Savings Rate',  value: `${lastReport.savingsPct}%`, color: BLUE },
-      { label:'Total Debt',    value: U.inr(lastReport.totalDebt), color: ORANGE },
+      { label:'Total Debt',    value: U.inrPdf(lastReport.totalDebt), color: ORANGE },
     ];
-    const kpiGap = 10;
+    const kpiGap = 8;
+    const kpiH = 62;
     const kpiW = (pageW - margin*2 - kpiGap*(kpis.length-1)) / kpis.length;
     kpis.forEach((k, i) => {
       const x = margin + i*(kpiW+kpiGap);
       doc.setFillColor(248,249,251);
-      doc.roundedRect(x, y, kpiW, 56, 4, 4, 'F');
+      doc.roundedRect(x, y, kpiW, kpiH, 4, 4, 'F');
       doc.setFillColor(...k.color);
-      doc.roundedRect(x, y, 4, 56, 2, 2, 'F');
-      doc.setTextColor(...GREY); doc.setFontSize(7.5); doc.setFont(undefined,'bold');
-      doc.text(k.label.toUpperCase(), x+10, y+18, { maxWidth: kpiW-16 });
-      doc.setTextColor(...k.color); doc.setFontSize(12);
-      doc.text(k.value, x+10, y+38, { maxWidth: kpiW-16 });
+      doc.roundedRect(x, y, 4, kpiH, 2, 2, 'F');
+      doc.setTextColor(...GREY); doc.setFontSize(7.2); doc.setFont(undefined,'bold');
+      doc.text(k.label.toUpperCase(), x+9, y+17, { maxWidth: kpiW-14 });
+
+      // Auto-shrink the value's font size so it always stays inside the
+      // card — long rupee amounts were previously overflowing past the box.
+      const maxValW = kpiW - 18;
+      let fs = 12.5;
+      doc.setFont(undefined, 'bold');
+      doc.setFontSize(fs);
+      while (fs > 7 && doc.getTextWidth(k.value) > maxValW) {
+        fs -= 0.5;
+        doc.setFontSize(fs);
+      }
+      doc.setTextColor(...k.color);
+      doc.text(k.value, x+9, y+42);
     });
-    y += 56 + 26;
+    y += kpiH + 26;
 
     // ── Charts (2x2 grid) — pulled straight from the live Chart.js canvases ─
     doc.setTextColor(...DARK); doc.setFontSize(13); doc.setFont(undefined,'bold');
@@ -409,12 +421,12 @@ async function exportToPDF() {
       startY: ty + 20,
       margin: { left: margin, right: margin },
       head: [['Income Category', 'Amount']],
-      body: incEntries.length ? incEntries.map(([cat,amt]) => [cat, U.inr(amt)]) : [['No income recorded', '—']],
+      body: incEntries.length ? incEntries.map(([cat,amt]) => [cat, U.inrPdf(amt)]) : [['No income recorded', '—']],
       theme: 'grid',
       headStyles: { fillColor: GREEN, textColor: 255, fontStyle: 'bold', fontSize: 9 },
       bodyStyles: { fontSize: 8.5, textColor: DARK },
       alternateRowStyles: { fillColor: [240,250,243] },
-      columnStyles: { 1: { halign: 'right', fontStyle: 'bold' } },
+      columnStyles: { 1: { halign: 'right', fontStyle: 'bold', cellPadding: { top: 5, bottom: 5, left: 5, right: 8 } } },
     });
 
     // Expense breakdown by category
@@ -423,12 +435,12 @@ async function exportToPDF() {
       startY: doc.lastAutoTable.finalY + 20,
       margin: { left: margin, right: margin },
       head: [['Expense Category', 'Amount']],
-      body: expEntries.length ? expEntries.map(([cat,amt]) => [cat, U.inr(amt)]) : [['No expenses recorded', '—']],
+      body: expEntries.length ? expEntries.map(([cat,amt]) => [cat, U.inrPdf(amt)]) : [['No expenses recorded', '—']],
       theme: 'grid',
       headStyles: { fillColor: RED, textColor: 255, fontStyle: 'bold', fontSize: 9 },
       bodyStyles: { fontSize: 8.5, textColor: DARK },
       alternateRowStyles: { fillColor: [253,240,239] },
-      columnStyles: { 1: { halign: 'right', fontStyle: 'bold' } },
+      columnStyles: { 1: { halign: 'right', fontStyle: 'bold', cellPadding: { top: 5, bottom: 5, left: 5, right: 8 } } },
     });
 
     // Full expense transaction list for the period
@@ -438,12 +450,12 @@ async function exportToPDF() {
       head: [['Date', 'Category', 'Description', 'Amount']],
       body: lastReport.expRows.length
         ? [...lastReport.expRows].sort((a,b)=>+b.amount-+a.amount)
-            .map(r => [U.fmtDate(r.date), r.category, r.description || '—', U.inr(r.amount)])
+            .map(r => [U.fmtDate(r.date), r.category, r.description || '—', U.inrPdf(r.amount)])
         : [['—','No expense transactions','—','—']],
       theme: 'striped',
       headStyles: { fillColor: ORANGE, textColor: 255, fontStyle: 'bold', fontSize: 9 },
       bodyStyles: { fontSize: 8 },
-      columnStyles: { 3: { halign: 'right', fontStyle: 'bold' } },
+      columnStyles: { 3: { halign: 'right', fontStyle: 'bold', cellPadding: { top: 4, bottom: 4, left: 4, right: 8 } } },
       didParseCell: (data) => {
         if (data.section === 'head') return;
         if (data.column.index === 3) data.cell.styles.textColor = RED;
@@ -457,12 +469,12 @@ async function exportToPDF() {
       head: [['Date', 'Category', 'Description', 'Amount']],
       body: lastReport.incRows.length
         ? [...lastReport.incRows].sort((a,b)=>+b.amount-+a.amount)
-            .map(r => [U.fmtDate(r.date), r.category, r.description || '—', U.inr(r.amount)])
+            .map(r => [U.fmtDate(r.date), r.category, r.description || '—', U.inrPdf(r.amount)])
         : [['—','No income transactions','—','—']],
       theme: 'striped',
       headStyles: { fillColor: GREEN, textColor: 255, fontStyle: 'bold', fontSize: 9 },
       bodyStyles: { fontSize: 8 },
-      columnStyles: { 3: { halign: 'right', fontStyle: 'bold' } },
+      columnStyles: { 3: { halign: 'right', fontStyle: 'bold', cellPadding: { top: 4, bottom: 4, left: 4, right: 8 } } },
       didParseCell: (data) => {
         if (data.section === 'head') return;
         if (data.column.index === 3) data.cell.styles.textColor = GREEN;
