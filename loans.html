@@ -69,15 +69,10 @@
           <input type="number" class="form-control" id="lPaid" placeholder="2">
         </div>
       </div>
-      <div class="form-row">
-        <div class="form-group">
-          <label class="form-label">Start Date</label>
-          <input type="date" class="form-control" id="lStart">
-        </div>
-        <div class="form-group">
-          <label class="form-label">Next EMI Date</label>
-          <input type="date" class="form-control" id="lNextEmi">
-        </div>
+      <div class="form-group">
+        <label class="form-label">Start Date <span style="font-weight:400;color:var(--text3)">(date your first EMI was/is due)</span></label>
+        <input type="date" class="form-control" id="lStart">
+        <div style="font-size:11px;color:var(--text3);margin-top:4px">Next EMI date is calculated automatically from this + EMIs paid — no need to set it manually.</div>
       </div>
       <div class="form-group">
         <label class="form-label">Notes</label>
@@ -141,11 +136,26 @@
 <script src="js/utils.js"></script>
 <script src="js/nav.js"></script>
 <script>
-let loans = [];
+let loans = [], lastPaymentByLoan = {};
 
 async function load() {
   loans = await db.select('loans', 'order=created_at.asc');
+  // Derive each loan's next EMI date from actual payment history instead of
+  // trusting a separately-stored field that can drift out of sync (e.g. if
+  // it's never updated, or gets edited by mistake). This also makes
+  // "Overdue" detection reliable, since it's always based on real data.
+  const payments = await db.select('loan_payments', 'order=date.desc');
+  lastPaymentByLoan = {};
+  payments.forEach(p => { if (!lastPaymentByLoan[p.loan_id]) lastPaymentByLoan[p.loan_id] = p.date; });
   renderSummary(); renderGrid();
+}
+
+// Next EMI due = 1 month after the last recorded payment, or the loan's
+// start date if no payment has been logged yet.
+function nextEmiDate(loan) {
+  const last = lastPaymentByLoan[loan.id];
+  if (last) return U.addMonths(last, 1);
+  return loan.start_date || null;
 }
 
 function renderSummary() {
@@ -176,6 +186,8 @@ function renderGrid() {
     const paid   = +l.principal - +l.outstanding;
     const pct    = Math.min(100, Math.round((paid / +l.principal)*100));
     const remain = (l.tenure_months||0) - (l.emis_paid||0);
+    const nextDue = nextEmiDate(l);
+    const isOverdue = remain > 0 && nextDue && nextDue < U.today();
     return `
       <div class="loan-card">
         <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px">
@@ -224,10 +236,17 @@ function renderGrid() {
           <div class="progress-fill" style="width:${pct}%;background:var(--blue)"></div>
         </div>
 
-        ${l.next_emi_date ? `
+        ${remain <= 0 ? `
+          <div style="margin-top:12px;font-size:12px;color:var(--green)">
+            <i class="fa-solid fa-circle-check"></i> Loan fully paid off
+          </div>` : isOverdue ? `
+          <div style="margin-top:12px;font-size:12px;font-weight:600;color:var(--red)">
+            <i class="fa-solid fa-triangle-exclamation"></i>
+            Overdue — EMI was due ${U.fmtDate(nextDue)}
+          </div>` : nextDue ? `
           <div style="margin-top:12px;font-size:12px;color:var(--text2)">
             <i class="fa-solid fa-calendar-day" style="color:var(--orange)"></i>
-            Next EMI: <strong>${U.fmtDate(l.next_emi_date)}</strong>
+            Next EMI: <strong>${U.fmtDate(nextDue)}</strong>
           </div>` : ''}
 
         <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">
@@ -248,7 +267,6 @@ function openAddLoan() {
   document.getElementById('loanModalTitle').textContent = 'Add Loan';
   ['lName','lBank','lPrincipal','lOutstanding','lEmi','lRate','lTenure','lPaid','lNotes'].forEach(id => document.getElementById(id).value = '');
   document.getElementById('lStart').value = U.today();
-  document.getElementById('lNextEmi').value = U.today();
   U.openModal('loanModal');
 }
 
@@ -265,7 +283,6 @@ function editLoan(id) {
   document.getElementById('lTenure').value      = l.tenure_months||'';
   document.getElementById('lPaid').value        = l.emis_paid||0;
   document.getElementById('lStart').value       = U.isoDate(l.start_date);
-  document.getElementById('lNextEmi').value     = U.isoDate(l.next_emi_date);
   document.getElementById('lNotes').value       = l.notes||'';
   U.openModal('loanModal');
 }
@@ -284,7 +301,6 @@ async function saveLoan() {
     tenure_months: parseInt(document.getElementById('lTenure').value)||null,
     emis_paid: parseInt(document.getElementById('lPaid').value)||0,
     start_date: document.getElementById('lStart').value||null,
-    next_emi_date: document.getElementById('lNextEmi').value||null,
     notes: document.getElementById('lNotes').value||null,
   };
   const btn = document.getElementById('lSaveBtn');
@@ -320,19 +336,17 @@ async function saveEmi() {
   const btn = document.getElementById('emiSaveBtn');
   U.loading(btn, true);
   try {
-    // Insert payment record
+    // Insert payment record — this is also what "next EMI date" and
+    // "overdue" are derived from now, so nothing else needs to track dates.
     await db.insert('loan_payments', { loan_id:loanId, date, amount, notes: document.getElementById('emiNotes').value||null });
-    // Update loan: reduce outstanding, increment emis_paid, advance next_emi_date
+    // Update loan: reduce outstanding, increment emis_paid
     const l = loans.find(x => x.id === loanId);
     const r = +l.interest_rate/100/12;
     const principalPortion = amount - (+l.outstanding * r);
     const newOS = Math.max(0, +l.outstanding - Math.max(0, principalPortion));
-    const nextEmi = new Date(l.next_emi_date||date);
-    nextEmi.setMonth(nextEmi.getMonth()+1);
     await db.update('loans', loanId, {
       outstanding: Math.round(newOS*100)/100,
-      emis_paid: (+l.emis_paid||0)+1,
-      next_emi_date: nextEmi.toISOString().split('T')[0]
+      emis_paid: (+l.emis_paid||0)+1
     });
     // Also add to expenses for tracking
     await db.insert('expenses', { date, amount, category:'Loan EMI', description: l.name+' EMI', notes: document.getElementById('emiNotes').value||null });
