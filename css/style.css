@@ -9,6 +9,8 @@
   --bg:         #f5f5f7;
   --surface:    #ffffff;
   --surface2:   #f9f9fb;
+  --surface-blur-90: rgba(255,255,255,.9);
+  --surface-blur-85: rgba(255,255,255,.85);
   --border:     #e5e5ea;
   --border2:    #d1d1d6;
 
@@ -39,6 +41,31 @@
   --transition: .18s ease;
 }
 
+/* ── Dark theme ──────────────────────────────────────────── */
+html.dark {
+  --bg:         #000000;
+  --surface:    #1c1c1e;
+  --surface2:   #232326;
+  --surface-blur-90: rgba(28,28,30,.9);
+  --surface-blur-85: rgba(28,28,30,.85);
+  --border:     #2c2c2e;
+  --border2:    #3a3a3c;
+
+  --text:       #f5f5f7;
+  --text2:      #98989d;
+  --text3:      #636366;
+
+  --blue-light:  rgba(10,132,255,.16);
+  --green-light: rgba(48,209,88,.16);
+  --red-light:   rgba(255,69,58,.16);
+  --orange-light:rgba(255,159,10,.16);
+  --purple-light:rgba(191,90,242,.16);
+  --teal-light:  rgba(100,210,255,.16);
+
+  --shadow:     0 1px 3px rgba(0,0,0,.4), 0 4px 16px rgba(0,0,0,.3);
+  --shadow-md:  0 4px 12px rgba(0,0,0,.5), 0 12px 32px rgba(0,0,0,.4);
+}
+
 /* ── Reset ───────────────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
@@ -49,6 +76,7 @@ body {
   font-size: 14px;
   line-height: 1.5;
   min-height: 100vh;
+  transition: background-color .2s ease, color .2s ease;
 }
 input, select, textarea, button { font-family: inherit; }
 a { text-decoration: none; color: inherit; }
@@ -63,7 +91,7 @@ img { display: block; max-width: 100%; }
 /* ── Sidebar ─────────────────────────────────────────────── */
 .sidebar {
   width: var(--sidebar-w);
-  background: rgba(255,255,255,.9);
+  background: var(--surface-blur-90);
   backdrop-filter: blur(20px);
   border-right: 1px solid var(--border);
   position: fixed;
@@ -161,7 +189,7 @@ img { display: block; max-width: 100%; }
 /* ── Top Bar ─────────────────────────────────────────────── */
 .topbar {
   height: var(--nav-h);
-  background: rgba(255,255,255,.85);
+  background: var(--surface-blur-85);
   backdrop-filter: blur(20px);
   border-bottom: 1px solid var(--border);
   position: sticky;

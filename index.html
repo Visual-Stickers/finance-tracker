@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <script src="js/theme.js"></script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Dashboard — Finance Tracker</title>
   <link rel="stylesheet" href="css/style.css">
@@ -80,6 +81,14 @@
 (async () => {
 if (!(await Auth.requireSession())) return;
 buildLayout('Dashboard');
+
+// Chart.js draws to canvas, so it can't read CSS variables on its own —
+// pull the current theme's actual colors once so charts aren't unreadable
+// black-on-black in dark mode.
+const chartTextColor = getComputedStyle(document.documentElement).getPropertyValue('--text2').trim();
+const chartGridColor = getComputedStyle(document.documentElement).getPropertyValue('--border').trim();
+Chart.defaults.color = chartTextColor;
+Chart.defaults.borderColor = chartGridColor;
 
 let ieChartInst, catChartInst;
 
@@ -208,7 +217,7 @@ function chartOpts() {
     },
     scales: {
       x: { grid:{ display:false }, ticks:{ font:{size:11} } },
-      y: { grid:{ color:'rgba(0,0,0,.05)' }, ticks:{ font:{size:11}, callback: v => '₹'+(v/1000).toFixed(0)+'k' } }
+      y: { grid:{ color:chartGridColor }, ticks:{ font:{size:11}, callback: v => '₹'+(v/1000).toFixed(0)+'k' } }
     }
   };
 }

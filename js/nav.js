@@ -31,6 +31,9 @@ function buildLayout(pageTitle) {
       </nav>
       <div class="sidebar-footer">
         Prem's Finance Tracker
+        <button onclick="Theme.toggle()" style="display:flex;align-items:center;gap:6px;margin-top:8px;background:none;border:none;color:var(--text2);font-size:12px;cursor:pointer;padding:0">
+          <i class="fa-solid ${Theme.current()==='dark'?'fa-sun':'fa-moon'}"></i> ${Theme.current()==='dark'?'Light Mode':'Dark Mode'}
+        </button>
         <button onclick="Auth.signOut()" style="display:flex;align-items:center;gap:6px;margin-top:8px;background:none;border:none;color:var(--text2);font-size:12px;cursor:pointer;padding:0">
           <i class="fa-solid fa-right-from-bracket"></i> Sign Out
         </button>
