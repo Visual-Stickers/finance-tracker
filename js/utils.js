@@ -18,6 +18,12 @@ const U = {
   },
   yearStart(d = new Date()) { return `${d.getFullYear()}-01-01`; },
   yearEnd(d  = new Date()) { return `${d.getFullYear()}-12-31`; },
+  addMonths(s, n) {
+    if (!s) return null;
+    const d = new Date(s + 'T00:00:00');
+    d.setMonth(d.getMonth() + n);
+    return d.toISOString().split('T')[0];
+  },
   fmtDate(s) {
     if (!s) return '—';
     const d = new Date(s + 'T00:00:00');
