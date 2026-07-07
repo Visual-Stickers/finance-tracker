@@ -125,6 +125,45 @@
   </div>
 </div>
 
+<!-- Add Spending Modal -->
+<div class="modal-overlay" id="spendModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Add Spending</div>
+      <button class="modal-close" onclick="U.closeModal('spendModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="sCardId">
+      <div class="form-group">
+        <label class="form-label">Card</label>
+        <input class="form-control" id="sCardName" readonly>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Date *</label>
+          <input type="date" class="form-control" id="sDate">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Amount (₹) *</label>
+          <input type="number" class="form-control" id="sAmount">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Description</label>
+        <input class="form-control" id="sDesc" placeholder="e.g. Amazon order, Dinner, etc.">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Notes</label>
+        <input class="form-control" id="sNotes" placeholder="Optional">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="U.closeModal('spendModal')">Cancel</button>
+      <button class="btn btn-primary" id="sSaveBtn" onclick="saveSpend()"><i class="fa-solid fa-check"></i> Confirm</button>
+    </div>
+  </div>
+</div>
+
 <!-- History Modal -->
 <div class="modal-overlay" id="histModal">
   <div class="modal modal-lg">
@@ -217,6 +256,9 @@ function renderGrid() {
             <button class="btn btn-primary btn-sm" onclick="openPayModal('${c.id}')">
               <i class="fa-solid fa-money-bill-wave"></i> Pay
             </button>
+            <button class="btn btn-danger btn-sm" onclick="openSpendModal('${c.id}')">
+              <i class="fa-solid fa-cart-plus"></i> Add Spending
+            </button>
             <button class="btn btn-ghost btn-sm" onclick="showHistory('${c.id}')">
               <i class="fa-solid fa-clock-rotate-left"></i> History
             </button>
@@ -305,17 +347,68 @@ async function savePayment() {
   } finally { U.loading(btn, false); }
 }
 
+function openSpendModal(id) {
+  const c = cards.find(x => x.id === id); if (!c) return;
+  document.getElementById('sCardId').value   = c.id;
+  document.getElementById('sCardName').value = c.name;
+  document.getElementById('sAmount').value   = '';
+  document.getElementById('sDate').value     = U.today();
+  document.getElementById('sDesc').value     = '';
+  document.getElementById('sNotes').value    = '';
+  U.openModal('spendModal');
+}
+
+async function saveSpend() {
+  const cardId = document.getElementById('sCardId').value;
+  const date   = document.getElementById('sDate').value;
+  const amount = parseFloat(document.getElementById('sAmount').value);
+  if (!date || isNaN(amount) || amount <= 0) { U.toast('Date and amount required','error'); return; }
+  const btn = document.getElementById('sSaveBtn');
+  U.loading(btn, true);
+  try {
+    const c = cards.find(x => x.id === cardId);
+    await db.insert('card_spends', {
+      card_id: cardId, date, amount,
+      description: document.getElementById('sDesc').value||null,
+      notes: document.getElementById('sNotes').value||null
+    });
+    await db.update('credit_cards', cardId, { outstanding: +c.outstanding + amount });
+    U.closeModal('spendModal'); U.toast('Spending added!'); await load();
+  } finally { U.loading(btn, false); }
+}
+
 async function showHistory(cardId) {
   const c = cards.find(x => x.id === cardId);
-  const payments = await db.select('card_payments', `card_id=eq.${cardId}&order=date.desc`);
-  document.getElementById('histTitle').textContent = `${c.name} — Payment History`;
-  document.getElementById('histBody').innerHTML = payments.length
+  const [payments, spends] = await Promise.all([
+    db.select('card_payments', `card_id=eq.${cardId}&order=date.desc`),
+    db.select('card_spends',   `card_id=eq.${cardId}&order=date.desc`)
+  ]);
+  const entries = [
+    ...payments.map(p => ({ ...p, type:'payment' })),
+    ...spends.map(s => ({ ...s, type:'spend' }))
+  ].sort((a,b) => new Date(b.date) - new Date(a.date) || new Date(b.created_at) - new Date(a.created_at));
+
+  document.getElementById('histTitle').textContent = `${c.name} — Activity History`;
+  document.getElementById('histBody').innerHTML = entries.length
     ? `<div class="table-wrap">
-        <table><thead><tr><th>Date</th><th class="td-right">Amount</th><th>Notes</th></tr></thead>
-        <tbody>${payments.map(p=>`<tr><td>${U.fmtDate(p.date)}</td><td class="td-right" style="font-weight:600;color:var(--green)">${U.inr(p.amount)}</td><td class="td-muted">${p.notes||'—'}</td></tr>`).join('')}</tbody></table>
+        <table><thead><tr><th>Date</th><th>Type</th><th>Details</th><th class="td-right">Amount</th></tr></thead>
+        <tbody>${entries.map(e => `
+          <tr>
+            <td>${U.fmtDate(e.date)}</td>
+            <td>${e.type === 'payment'
+              ? '<span style="color:var(--green)"><i class="fa-solid fa-money-bill-wave"></i> Payment</span>'
+              : '<span style="color:var(--red)"><i class="fa-solid fa-cart-plus"></i> Spending</span>'}</td>
+            <td class="td-muted">${e.type === 'payment' ? (e.notes||'—') : (e.description || e.notes || '—')}</td>
+            <td class="td-right" style="font-weight:600;color:${e.type === 'payment' ? 'var(--green)' : 'var(--red)'}">
+              ${e.type === 'payment' ? '-' : '+'}${U.inr(e.amount)}
+            </td>
+          </tr>`).join('')}</tbody></table>
        </div>
-       <div style="margin-top:12px;font-size:13px;color:var(--text2)">Total paid: <strong>${U.inr(payments.reduce((s,p)=>s+ +p.amount,0))}</strong></div>`
-    : '<div class="empty"><p>No payments recorded.</p></div>';
+       <div style="display:flex;gap:20px;margin-top:12px;font-size:13px;color:var(--text2)">
+         <div>Total spent: <strong style="color:var(--red)">${U.inr(spends.reduce((s,x)=>s+ +x.amount,0))}</strong></div>
+         <div>Total paid: <strong style="color:var(--green)">${U.inr(payments.reduce((s,x)=>s+ +x.amount,0))}</strong></div>
+       </div>`
+    : '<div class="empty"><p>No activity recorded.</p></div>';
   U.openModal('histModal');
 }
 
