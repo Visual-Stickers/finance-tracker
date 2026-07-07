@@ -22,10 +22,13 @@
     <input type="date" class="form-control" id="dateTo"   style="display:none">
   </div>
   <div style="display:flex;gap:8px">
+    <button class="btn btn-ghost btn-sm" onclick="openRecurringModal()"><i class="fa-solid fa-rotate"></i> Recurring</button>
     <button class="btn btn-ghost btn-sm" onclick="openBulk()"><i class="fa-solid fa-upload"></i> Bulk Import</button>
     <button class="btn btn-primary btn-sm" onclick="openAdd()"><i class="fa-solid fa-plus"></i> Add Expense</button>
   </div>
 </div>
+
+<div id="pendingRecurring"></div>
 
 <div style="display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap" id="expSummary"></div>
 
@@ -42,6 +45,7 @@
     </div>
     <div class="modal-body">
       <input type="hidden" id="editId">
+      <input type="hidden" id="fRecurringId">
       <div class="form-row">
         <div class="form-group">
           <label class="form-label">Date *</label>
@@ -101,6 +105,57 @@
       <button class="btn btn-primary" id="bulkSaveBtn" onclick="saveBulk()" style="display:none">
         <i class="fa-solid fa-upload"></i> Import <span id="bulkCount"></span> rows
       </button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Recurring Templates Modal ── -->
+<div class="modal-overlay" id="recurringModal">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <div class="modal-title"><i class="fa-solid fa-rotate"></i> Recurring Expenses</div>
+      <button class="modal-close" onclick="U.closeModal('recurringModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:12px;color:var(--text2);margin-bottom:14px">
+        Set up things like Rent or Loan EMI that repeat every month. You'll still get a one-click reminder each month instead of it being added automatically — nothing gets logged without you confirming it actually happened.
+      </p>
+      <input type="hidden" id="editRecurringId">
+      <div class="form-row">
+        <div class="form-group" style="flex:2">
+          <label class="form-label">Title *</label>
+          <input class="form-control" id="rTitle" placeholder="e.g. Rent">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Amount (₹) *</label>
+          <input type="number" class="form-control" id="rAmount" placeholder="0">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Category</label>
+          <select class="form-control form-select" id="rCategory">
+            <option>Rent</option><option>Loan EMI</option><option>Groceries</option>
+            <option>Food & Dining</option><option>Transport</option><option>Utilities</option>
+            <option>Healthcare</option><option>Entertainment</option><option>Shopping</option>
+            <option>Education</option><option>Insurance</option><option>Family</option>
+            <option>Credit Card</option><option>Other</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Day of month *</label>
+          <input type="number" min="1" max="31" class="form-control" id="rDay" placeholder="e.g. 1">
+        </div>
+        <div class="form-group" style="flex:0 0 auto;align-self:flex-end;padding-bottom:10px">
+          <button class="btn btn-primary btn-sm" id="rSaveBtn" onclick="saveRecurringTemplate()"><i class="fa-solid fa-check"></i> <span id="rSaveLabel">Add Template</span></button>
+          <button class="btn btn-ghost btn-sm" id="rCancelBtn" onclick="resetRecurringForm()" style="display:none">Cancel</button>
+        </div>
+      </div>
+      <hr style="border-color:var(--border);margin:16px 0">
+      <div id="recurringList"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="U.closeModal('recurringModal')">Close</button>
     </div>
   </div>
 </div>
@@ -167,6 +222,7 @@ function renderTable() {
 
 function openAdd() {
   document.getElementById('editId').value = '';
+  document.getElementById('fRecurringId').value = '';
   document.getElementById('addModalTitle').textContent = 'Add Expense';
   document.getElementById('fDate').value = U.today();
   document.getElementById('fAmount').value = '';
@@ -179,6 +235,7 @@ function openAdd() {
 function editRow(id) {
   const r = rows.find(x => x.id === id); if (!r) return;
   document.getElementById('editId').value = r.id;
+  document.getElementById('fRecurringId').value = r.recurring_id || '';
   document.getElementById('addModalTitle').textContent = 'Edit Expense';
   document.getElementById('fDate').value = U.isoDate(r.date);
   document.getElementById('fAmount').value = r.amount;
@@ -195,7 +252,8 @@ async function saveRow() {
   if (!date || isNaN(amount) || amount <= 0) { U.toast('Date and amount are required','error'); return; }
   const payload = { date, amount, category: document.getElementById('fCategory').value,
     description: document.getElementById('fDesc').value||null,
-    notes: document.getElementById('fNotes').value||null };
+    notes: document.getElementById('fNotes').value||null,
+    recurring_id: document.getElementById('fRecurringId').value || null };
   const btn = document.getElementById('saveBtn');
   U.loading(btn, true);
   try {
@@ -208,6 +266,138 @@ async function saveRow() {
 async function deleteRow(id) {
   if (!await U.confirm('Delete this expense?')) return;
   await db.delete('expenses', id); U.toast('Deleted','warning'); await load();
+}
+
+// ── Recurring Templates ─────────────────────────────────────────────────────
+let recurringTemplates = [];
+
+async function loadRecurringTemplates() {
+  recurringTemplates = await db.select('recurring_templates', `type=eq.expense&order=day_of_month.asc`);
+}
+
+function openRecurringModal() {
+  resetRecurringForm();
+  renderRecurringList();
+  U.openModal('recurringModal');
+}
+
+function resetRecurringForm() {
+  document.getElementById('editRecurringId').value = '';
+  document.getElementById('rTitle').value = '';
+  document.getElementById('rAmount').value = '';
+  document.getElementById('rCategory').value = 'Rent';
+  document.getElementById('rDay').value = '';
+  document.getElementById('rSaveLabel').textContent = 'Add Template';
+  document.getElementById('rCancelBtn').style.display = 'none';
+}
+
+function editRecurringTemplateForm(id) {
+  const t = recurringTemplates.find(x => x.id === id); if (!t) return;
+  document.getElementById('editRecurringId').value = t.id;
+  document.getElementById('rTitle').value = t.title;
+  document.getElementById('rAmount').value = t.amount;
+  document.getElementById('rCategory').value = t.category || 'Rent';
+  document.getElementById('rDay').value = t.day_of_month;
+  document.getElementById('rSaveLabel').textContent = 'Update Template';
+  document.getElementById('rCancelBtn').style.display = 'inline-flex';
+}
+
+async function saveRecurringTemplate() {
+  const id = document.getElementById('editRecurringId').value;
+  const title = document.getElementById('rTitle').value.trim();
+  const amount = parseFloat(document.getElementById('rAmount').value);
+  const day = parseInt(document.getElementById('rDay').value);
+  if (!title || isNaN(amount) || amount <= 0 || !day || day < 1 || day > 31) {
+    U.toast('Title, amount and a valid day (1-31) are required', 'error'); return;
+  }
+  const payload = { type: 'expense', title, amount, category: document.getElementById('rCategory').value, day_of_month: day };
+  if (id) await db.update('recurring_templates', id, payload);
+  else    await db.insert('recurring_templates', payload);
+  U.toast(id ? 'Template updated!' : 'Recurring template added!');
+  resetRecurringForm();
+  await loadRecurringTemplates();
+  renderRecurringList();
+  await checkPendingRecurring();
+}
+
+async function deleteRecurringTemplate(id) {
+  if (!await U.confirm('Delete this recurring template? (Past entries already logged from it are not affected.)')) return;
+  await db.delete('recurring_templates', id);
+  await loadRecurringTemplates();
+  renderRecurringList();
+  await checkPendingRecurring();
+}
+
+async function toggleRecurringActive(id, active) {
+  await db.update('recurring_templates', id, { active });
+  await loadRecurringTemplates();
+  await checkPendingRecurring();
+}
+
+function renderRecurringList() {
+  const el = document.getElementById('recurringList');
+  if (!recurringTemplates.length) {
+    el.innerHTML = '<div class="empty" style="padding:24px"><p>No recurring expenses set up yet.</p></div>';
+    return;
+  }
+  el.innerHTML = recurringTemplates.map(t => `
+    <div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border)">
+      <label style="display:flex;align-items:center;cursor:pointer">
+        <input type="checkbox" ${t.active?'checked':''} onchange="toggleRecurringActive('${t.id}', this.checked)">
+      </label>
+      <div style="flex:1">
+        <div style="font-weight:600">${t.title} <span class="badge badge-red" style="margin-left:4px">${t.category||''}</span></div>
+        <div style="font-size:12px;color:var(--text2)">Day ${t.day_of_month} of every month · ${t.active?'Active':'Paused'}</div>
+      </div>
+      <div style="font-weight:700;color:var(--red)">${U.inr(t.amount)}</div>
+      <button class="btn btn-ghost btn-xs btn-icon" onclick="editRecurringTemplateForm('${t.id}')"><i class="fa-solid fa-pen"></i></button>
+      <button class="btn btn-ghost btn-xs btn-icon" onclick="deleteRecurringTemplate('${t.id}')"><i class="fa-solid fa-trash"></i></button>
+    </div>`).join('');
+}
+
+async function checkPendingRecurring() {
+  const banner = document.getElementById('pendingRecurring');
+  if (!recurringTemplates.length) { banner.innerHTML = ''; return; }
+
+  const mStart = U.monthStart(), mEnd = U.monthEnd();
+  const monthKey = mStart.slice(0, 7);
+  const thisMonthRows = await db.select('expenses', `date=gte.${mStart}&date=lte.${mEnd}&recurring_id=not.is.null`);
+  const loggedTemplateIds = new Set(thisMonthRows.map(r => r.recurring_id));
+
+  const pending = recurringTemplates.filter(t => t.active && !loggedTemplateIds.has(t.id))
+    .filter(t => localStorage.getItem(`recur_skip_${t.id}_${monthKey}`) !== '1');
+
+  if (!pending.length) { banner.innerHTML = ''; return; }
+
+  banner.innerHTML = `
+    <div class="card card-pad" style="margin-bottom:20px;border-color:var(--red);background:var(--red-light)">
+      <div style="font-weight:700;font-size:13px;margin-bottom:8px"><i class="fa-solid fa-rotate"></i> Recurring expenses not yet added this month</div>
+      ${pending.map(t => `
+        <div style="display:flex;align-items:center;gap:10px;padding:6px 0">
+          <div style="flex:1">${t.title} <span style="color:var(--text2)">— ${U.inr(t.amount)}</span></div>
+          <button class="btn btn-primary btn-xs" onclick="addFromRecurring('${t.id}')"><i class="fa-solid fa-check"></i> Add</button>
+          <button class="btn btn-ghost btn-xs" onclick="skipRecurring('${t.id}')">Skip this month</button>
+        </div>`).join('')}
+    </div>`;
+}
+
+function addFromRecurring(id) {
+  const t = recurringTemplates.find(x => x.id === id); if (!t) return;
+  document.getElementById('editId').value = '';
+  document.getElementById('fRecurringId').value = t.id;
+  document.getElementById('addModalTitle').textContent = 'Add Expense';
+  document.getElementById('fDate').value     = U.today();
+  document.getElementById('fAmount').value   = t.amount;
+  document.getElementById('fCategory').value = t.category || 'Rent';
+  document.getElementById('fDesc').value     = t.title;
+  document.getElementById('fNotes').value    = '';
+  U.openModal('addModal');
+}
+
+function skipRecurring(id) {
+  const monthKey = U.monthStart().slice(0, 7);
+  localStorage.setItem(`recur_skip_${id}_${monthKey}`, '1');
+  checkPendingRecurring();
 }
 
 function openBulk() {
@@ -268,6 +458,8 @@ document.querySelectorAll('[data-range]').forEach(btn => {
 });
 document.getElementById('dateFrom').addEventListener('change', e => { dateFrom = e.target.value; load(); });
 document.getElementById('dateTo').addEventListener('change',   e => { dateTo   = e.target.value; load(); });
+await loadRecurringTemplates();
+checkPendingRecurring();
 load();
 })();
 </script>
